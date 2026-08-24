@@ -282,7 +282,7 @@ export default function Repo() {
       {/* Navbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-[#21262d] w-full text-xs">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" className="h-7 w-7 rounded-full" alt="gitRAG" />
+          <img src="/logo.png" className="h-7 w-7 rounded-full" alt="CodeSense AI" />
           <span className="font-bold text-[#2ea043] ml-1 text-base">Repo Viewer</span>
         </div>
         {!sidebarOpen && (

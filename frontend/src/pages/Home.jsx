@@ -5,8 +5,8 @@ import { Search, GitBranch, BarChart2, KeyRound, MessageSquare, Star } from "luc
 import PointCloudSphere from "../components/PointCloudSphere";
 
 // Typing animation for logo
-function TypingGitRAG() {
-  const text = "gitRAG";
+function TypingCodeSenseAI() {
+  const text = "CodeSense AI";
   const [display, setDisplay] = useState("");
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -93,12 +93,12 @@ function Footer({ user }) {
           <img
             src="/logo.png"
             className="h-10 w-10 rounded-full border border-[#2ea043] shadow"
-            alt="gitRAG"
+            alt="CodeSense AI"
           />
-          <span className="text-gray-400 text-lg font-bold tracking-wide">gitRAG</span>
+          <span className="text-gray-400 text-lg font-bold tracking-wide">CodeSense AI</span>
         </div>
         <span className="text-gray-400 text-xs mb-1">
-          &copy; {new Date().getFullYear()} gitRAG. All rights reserved.
+          &copy; {new Date().getFullYear()} CodeSense AI. All rights reserved.
         </span>
         {user && (
           <span className="flex items-center gap-2 text-xs text-gray-500">
@@ -124,8 +124,8 @@ export default function Home() {
       {/* --- NAVBAR --- */}
       <div className="flex items-center justify-between px-6 py-4 bg-[#161b22] border-b border-[#21262d] w-full">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="gitRAG" />
-          <TypingGitRAG />
+          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="CodeSense AI" />
+          <TypingCodeSenseAI />
         </div>
         {!sidebarOpen && (
           <GlowingWave>
@@ -205,7 +205,7 @@ export default function Home() {
         {/* --- Features Section --- */}
         <div className="max-w-6xl w-full mt-8 pb-8">
           <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold mb-4 text-white">Why Use gitRAG?</h2>
+            <h2 className="text-3xl font-bold mb-4 text-white">Why Use CodeSense AI?</h2>
             <p className="text-lg text-gray-400">
               Features designed to help you{" "}
               <span className="text-[#2ea043]">

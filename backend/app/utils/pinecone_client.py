@@ -3,7 +3,7 @@ from pinecone import Pinecone, ServerlessSpec
 from app.core.config import PINECONE_API_KEY, PINECONE_INDEX
 
 def get_pinecone_index(provider: str, dim: int, metric="cosine"):
-    base = PINECONE_INDEX  # e.g. "gitrag-code"
+    base = PINECONE_INDEX  # e.g. "codesense-ai-code"
     name = f"{base}-{provider}-{dim}"
     pc = Pinecone(api_key=PINECONE_API_KEY)
     if not pc.has_index(name):

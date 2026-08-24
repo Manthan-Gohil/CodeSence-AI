@@ -87,7 +87,7 @@ class EmailService:
       EMAILJS_SERVICE_ID
       EMAILJS_TEMPLATE_ID
       EITHER EMAILJS_PRIVATE_KEY OR EMAILJS_PUBLIC_KEY (for user_id mode)
-      APP_NAME (optional; default 'gitRAG')
+      APP_NAME (optional; default 'CodeSense AI')
     """
 
     @staticmethod
@@ -96,7 +96,7 @@ class EmailService:
         template_id  = os.getenv("EMAILJS_TEMPLATE_ID")
         private_key  = os.getenv("EMAILJS_PRIVATE_KEY")  
         public_key   = os.getenv("EMAILJS_PUBLIC_KEY")   
-        app_name     = os.getenv("APP_NAME", "gitRAG")
+        app_name     = os.getenv("APP_NAME", "CodeSense AI")
 
         missing_base = [k for k, v in {
             "EMAILJS_SERVICE_ID": service_id,

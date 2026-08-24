@@ -1,6 +1,6 @@
-# gitRAG
+# CodeSense AI
 
-**RAG-based GitHub Repo Analysis Platform**  
+**AI-Powered Semantic Code Intelligence & Repository Assistant**  
 *Analyse any public GitHub repository with LLM-powered chat and advanced semantic search.*
 
 ---
@@ -8,17 +8,15 @@
 
 https://github.com/user-attachments/assets/99065742-a793-4ec5-8bb5-231f37d3d50e
 
-
 ---
 
 # Run Locally (production-style):
-- docker build -t gitrag .
-- docker run --env-file backend/.env -p 8000:8000 gitrag
+- docker build -t codesense-ai .
+- docker run --env-file backend/.env -p 8000:8000 codesense-ai
 - Open http://localhost:8000
 
 
 ---
-
 
 ## Overview
 
@@ -33,7 +31,7 @@ I needed a platform that would let me:
 - Support multiple users and projects securely for my team and in competitions.
 
 ### **Action**
-I independently designed and built **gitRAG**—an end-to-end, multi-tenant platform that ingests any public GitHub repo, chunks and indexes its code using embeddings and vector search, and enables users to interactively chat, search, and analyse codebases using a modern LLM (via LangChain and OpenAI API).
+I independently designed and built **CodeSense AI**—an end-to-end, multi-tenant platform that ingests any public GitHub repo, chunks and indexes its code using embeddings and vector search, and enables users to interactively chat, search, and analyse codebases using a modern LLM (via LangChain and OpenAI API).
 
 - **Built secure, scalable backend** using FastAPI, PostgreSQL (Aiven), PineconeDB, and LangChain.
 - **Developed a modern React frontend** with hierarchical file explorer, real-time AI chat, and repo analytics.
@@ -44,7 +42,7 @@ I independently designed and built **gitRAG**—an end-to-end, multi-tenant plat
 ### **Result**
 - Significantly reduced onboarding time for new repositories—now get context, explanations, and code Q&A in seconds.
 - Enabled my team and myself to confidently tackle larger, more complex projects in hackathons and coursework.
-- gitRAG is now a robust, reusable tool for anyone needing rapid understanding of unfamiliar codebases.
+- CodeSense AI is now a robust, reusable tool for anyone needing rapid understanding of unfamiliar codebases.
 
 ---
 
@@ -95,7 +93,7 @@ I independently designed and built **gitRAG**—an end-to-end, multi-tenant plat
    - Generates vector embeddings (LangChain + OpenAI API)
    - Stores chunks and metadata in PineconeDB and PostgreSQL
 4. **Analysis & Chat:**  
-   - Use AI chat to ask any question about the repo (“What does X function do?” “Show me auth logic”)
+   - Use AI chat to ask any question about the repo ("What does X function do?" "Show me auth logic")
    - Semantic search finds and retrieves the most relevant code chunks
    - LLM (via LangChain) generates contextual, accurate answers using retrieved code
 5. **Explore:**  
@@ -113,4 +111,3 @@ I independently designed and built **gitRAG**—an end-to-end, multi-tenant plat
 - **University coursework:** Quickly onboard and analyze group project submissions.
 - **Personal learning:** Explore popular open-source projects by chatting and searching their code.
 - **Team code reviews:** Get instant explanations and context for PRs and legacy code.
-

@@ -4,8 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import { Bug, AlertTriangle, MessageSquare, Send, CheckCircle } from "lucide-react";
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 
-function TypingGitRAG() {
-  const text = "gitRAG";
+function TypingCodeSenseAI() {
+  const text = "CodeSense AI";
   const [display, setDisplay] = useState("");
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -29,11 +29,11 @@ function Footer({ user }) {
     <footer className="w-full bg-[#161b22] border-t border-[#232b36] py-8 mt-16">
       <div className="max-w-4xl mx-auto flex flex-col items-center gap-3">
         <div className="flex items-center gap-3 mb-1">
-          <img src="/logo.png" className="h-10 w-10 rounded-full border border-[#2ea043] shadow" alt="gitRAG" />
-          <span className="text-gray-400 text-lg font-bold tracking-wide">gitRAG</span>
+          <img src="/logo.png" className="h-10 w-10 rounded-full border border-[#2ea043] shadow" alt="CodeSense AI" />
+          <span className="text-gray-400 text-lg font-bold tracking-wide">CodeSense AI</span>
         </div>
         <span className="text-gray-400 text-xs mb-1">
-          &copy; {new Date().getFullYear()} gitRAG. All rights reserved.
+          &copy; {new Date().getFullYear()} CodeSense AI. All rights reserved.
         </span>
         {user && (
           <span className="flex items-center gap-2 text-xs text-gray-500">
@@ -131,8 +131,8 @@ export default function Feedback() {
       <div className="flex min-h-screen bg-[#161b22] flex-col relative">
         <div className="flex items-center justify-between px-6 py-4 bg-[#161b22] border-b border-[#21262d] w-full">
           <div className="flex items-center gap-2">
-            <img src="/logo.png" className="h-8 w-8 rounded-full" alt="gitRAG" />
-            <TypingGitRAG />
+            <img src="/logo.png" className="h-8 w-8 rounded-full" alt="CodeSense AI" />
+            <TypingCodeSenseAI />
           </div>
           {/* MODIFIED: Added sidebar button */}
           {!sidebarOpen && (
@@ -157,7 +157,7 @@ export default function Feedback() {
               <CheckCircle size={64} className="text-[#2ea043] mx-auto mb-6" />
               <h1 className="text-3xl font-bold mb-4 text-[#2ea043]">Thank You!</h1>
               <p className="text-lg text-gray-300 mb-6">
-                Your feedback has been successfully submitted. We appreciate you taking the time to help us improve gitRAG.
+                Your feedback has been successfully submitted. We appreciate you taking the time to help us improve CodeSense AI.
               </p>
               <div className="flex gap-4 justify-center">
                 <button
@@ -185,8 +185,8 @@ export default function Feedback() {
     <div className="flex min-h-screen bg-[#161b22] flex-col relative">
       <div className="flex items-center justify-between px-6 py-4 bg-[#161b22] border-b border-[#21262d] w-full">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="gitRAG" />
-          <TypingGitRAG />
+          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="CodeSense AI" />
+          <TypingCodeSenseAI />
         </div>
         {/* MODIFIED: Added sidebar button */}
         {!sidebarOpen && (
@@ -210,7 +210,7 @@ export default function Feedback() {
         <div className="max-w-4xl w-full">
           <div className="text-center mb-8 mt-8">
             <h1 className="text-4xl md:text-5xl font-extrabold mb-6 text-[#2ea043] leading-tight">
-              Help Us Improve gitRAG
+              Help Us Improve CodeSense AI
             </h1>
             <p className="text-lg text-gray-300 mb-4">
               Found a bug? Have a feature request? We'd love to hear from you!

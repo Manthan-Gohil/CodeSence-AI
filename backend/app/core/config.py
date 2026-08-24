@@ -15,7 +15,7 @@ DATABASE_URL = config('DATABASE_URL', cast=str)
 
 # Pinecone
 PINECONE_API_KEY = config('PINECONE_API_KEY', cast=str)
-PINECONE_INDEX = config('PINECONE_INDEX', cast=str, default="gitrag-code")
+PINECONE_INDEX = config('PINECONE_INDEX', cast=str, default="codesense-ai-code")
 
 # Ollama & Embedding models
 OLLAMA_BASE_URL = config('OLLAMA_BASE_URL', cast=str, default="http://localhost:11434")

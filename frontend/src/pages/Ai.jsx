@@ -500,7 +500,7 @@ export default function Ai() {
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onLogout={logoutWithClear} />
       <div className="flex items-center justify-between px-6 py-4 bg-[#161b22] border-b border-[#21262d] w-full z-20 h-16">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="gitRAG" />
+          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="CodeSense AI" />
           <span className="font-bold text-[#2ea043] ml-1 text-xl">AI Chat</span>
         </div>
         {!sidebarOpen && (
