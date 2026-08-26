@@ -1,0 +1,168 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: codesense-postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: codesense_ai
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d codesense_ai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # FAISS Vector Store (file-based, no separate container needed - uses volume)
+  # FAISS data persisted in ./faiss_index volume
+
+  # Ollama with Code Llama
+  ollama:
+    image: ollama/ollama:latest
+    container_name: codesense-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    entrypoint: >
+      /bin/sh -c "
+        ollama serve &
+        sleep 5 &&
+        ollama pull nomic-embed-text &&
+        ollama pull codellama &&
+        wait
+      "
+
+  # Data Service - GitHub ingestion, PostgreSQL metadata
+  data-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.service
+    container_name: codesense-data-service
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/codesense_ai
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - RAG_SERVICE_URL=http://rag-service:8002
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    command: uvicorn services.data_service.main:app --host 0.0.0.0 --port 8003 --reload
+
+  # RAG Service - Chunking, embeddings, FAISS, retrieval
+  rag-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.service
+    container_name: codesense-rag-service
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - EMBED_MODEL=nomic-embed-text
+      - LLM_MODEL=codellama
+      - FAISS_INDEX_DIR=/app/faiss_index
+    ports:
+      - "8002:8002"
+    depends_on:
+      ollama:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - faiss_data:/app/faiss_index
+    command: uvicorn services.rag_service.main:app --host 0.0.0.0 --port 8002 --reload
+
+  # LLM Service - Ollama/Code Llama calls
+  llm-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.service
+    container_name: codesense-llm-service
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LLM_MODEL=codellama
+      - EMBED_MODEL=nomic-embed-text
+    ports:
+      - "8001:8001"
+    depends_on:
+      ollama:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+    command: uvicorn services.llm_service.main:app --host 0.0.0.0 --port 8001 --reload
+
+  # Application Service - Orchestrates all services, serves frontend
+  application-service:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.service
+    container_name: codesense-application-service
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/codesense_ai
+      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
+      - FRONT_END_URL=http://localhost:5173
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
+      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - RAG_SERVICE_URL=http://rag-service:8002
+      - LLM_SERVICE_URL=http://llm-service:8001
+      - DATA_SERVICE_URL=http://data-service:8003
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rag-service:
+        condition: service_started
+      llm-service:
+        condition: service_started
+      data-service:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - ./frontend/dist:/app/frontend/dist
+    command: uvicorn services.application_service.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend (Vite dev server for development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: codesense-frontend
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: npm run dev -- --host 0.0.0.0
+
+volumes:
+  postgres_data:
+  ollama_data:
+  faiss_data:
+
+networks:
+  default:
+    name: codesense-network
