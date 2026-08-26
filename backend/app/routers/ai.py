@@ -214,3 +214,35 @@ async def pull_ollama_model_endpoint(model: str = Body(..., embed=True)):
         return {"model": model, "pulled": success}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to pull model: {str(e)}")
+
+# Exercise 3: RAG Comparison Endpoint
+class RAGComparisonRequest(BaseModel):
+    query: str
+    user_id: str
+    provider: str = "ollama"
+
+@router.post("/compare_rag")
+async def compare_rag_endpoint(body: RAGComparisonRequest, db: Session = Depends(get_db)):
+    """
+    Exercise 3: Compare RAG vs non-RAG responses
+    Same question answered WITH retrieved context vs WITHOUT it
+    Demonstrates the difference RAG makes.
+    """
+    try:
+        repo_obj = get_active_repo(db, body.user_id)
+        if not repo_obj:
+            raise HTTPException(400, "No active repo set. Please ingest a repo first.")
+        repo_url = repo_obj.repo_url
+        namespace = f"{body.user_id}_{repo_url.rstrip('/').split('/')[-1]}"
+        
+        api_key = get_api_key_by_provider(db, body.user_id, body.provider)
+        if not api_key and body.provider != "ollama":
+            raise HTTPException(401, f"No {body.provider} API key set for this user.")
+        
+        from app.services.rag_service import chat_with_rag_comparison
+        result = chat_with_rag_comparison(body.query, namespace, body.provider, api_key)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Comparison failed: {str(e)}")
