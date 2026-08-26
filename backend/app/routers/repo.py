@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 from app.services.github_service import list_and_get_files, get_file_content_from_github, list_repo_file_paths
 from app.services.chunking_service import chunk_files_mem
-from app.services.rag_service import upsert_chunks_to_pinecone, delete_pinecone_namespace
+from app.services.rag_service import upsert_chunks_to_faiss, delete_faiss_namespace, ingest_repo_files
 from app.utils.db import get_db
 
 from app.crud.api_key import get_api_key_by_provider
@@ -21,7 +21,7 @@ from app.crud.active_repo import (
     delete_active_repo,
 )
 from app.crud.chat import delete_chat_namespace
-from app.services.repo_analysis import build_file_tree, build_file_tree_from_paths,analyze_repo 
+from app.services.repo_analysis import build_file_tree, build_file_tree_from_paths, analyze_repo
 
 load_dotenv()
 
@@ -46,7 +46,7 @@ async def get_repo_metadata_endpoint(
     if not repo_obj:
         raise HTTPException(status_code=400, detail="No active repo for user.")
 
-    repo_url = repo_obj.repo_url 
+    repo_url = repo_obj.repo_url
     meta = get_repo_metadata(db, repo_url)
     if not meta:
         raise HTTPException(status_code=404, detail="No metadata found for this repo. Please re-ingest.")
@@ -61,7 +61,7 @@ async def get_repo_metadata_endpoint(
 async def ingest_repo(
     repo_url: str = Body(...),
     user_id: str = Body(...),
-    provider: str = Body("openai"),
+    provider: str = Body("ollama"),
     db: Session = Depends(get_db)
 ):
     try:
@@ -74,9 +74,9 @@ async def ingest_repo(
             prev_namespace = f"{user_id}_{prev_repo}"
             
             try:
-                delete_pinecone_namespace(prev_namespace, prev_provider)
+                delete_faiss_namespace(prev_namespace)
             except TypeError:
-                delete_pinecone_namespace(prev_namespace)
+                pass
                 
             delete_chat_namespace(db, prev_namespace)
             delete_active_repo(db, user_id)
@@ -87,8 +87,8 @@ async def ingest_repo(
         except Exception as e:
             print(f"/ingest_repo get_api_key_by_provider failed: {e}")
 
-            
-        if not api_key:
+        # For Ollama, no API key needed
+        if provider != "ollama" and not api_key:
             raise HTTPException(
                 status_code=401,
                 detail=f"No {provider} API key set for this user."
@@ -101,12 +101,10 @@ async def ingest_repo(
         owner, repo = parts[-2], parts[-1]
 
         files = list_and_get_files(owner, repo, github_token=github_token)
-        chunks = chunk_files_mem(files)
         namespace = f"{user_id}_{repo}"
-        try:
-            upsert_chunks_to_pinecone(chunks, namespace, provider, api_key)
-        except TypeError:
-            upsert_chunks_to_pinecone(chunks, namespace, api_key)
+        
+        # Use the new ingestion pipeline
+        result = ingest_repo_files(files, namespace, provider, api_key)
 
         GITHUB_API = "https://api.github.com"
 
@@ -178,11 +176,11 @@ async def ingest_repo(
         )
         
         set_active_repo(db, user_id, repo_url, provider)
-        return {"ok": True, "namespace": namespace}
+        return {"ok": True, "namespace": namespace, "chunks_added": result.get("chunks_added", 0)}
     except HTTPException:
         raise
     except Exception as e:
-        print(f"ERROR: /ingest_repo failed: {e}")  
+        print(f"ERROR: /ingest_repo failed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/switch_repo")
@@ -200,9 +198,9 @@ async def switch_repo(
             repo = repo_url.rstrip("/").split("/")[-1]
             namespace = f"{user_id}_{repo}"
             try:
-                delete_pinecone_namespace(namespace, provider)
+                delete_faiss_namespace(namespace)
             except TypeError:
-                delete_pinecone_namespace(namespace)
+                pass
                 
             delete_chat_namespace(db, namespace)
             delete_active_repo(db, user_id)
@@ -229,7 +227,7 @@ async def get_file_content(
     if not repo_obj:
         raise HTTPException(status_code=400, detail="No active repo for user.")
         
-    repo_url = repo_obj.repo_url 
+    repo_url = repo_obj.repo_url
     parts = repo_url.rstrip("/").split("/")
     owner, repo = parts[-2], parts[-1]
     try:
