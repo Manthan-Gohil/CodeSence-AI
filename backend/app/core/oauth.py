@@ -7,8 +7,6 @@ from .config import SESSION_SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, 
 oauth = OAuth()
 
 def init_oauth(app: FastAPI):
-    app.add_middleware(SessionMiddleware, secret_key=SESSION_SECRET_KEY)
-
     # Google OAuth
     oauth.register(
         name='google',

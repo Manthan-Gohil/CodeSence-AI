@@ -1,15 +1,24 @@
+import os
 from starlette.config import Config
 
-config = Config('.env')
+# Look for .env in current directory or backend directory
+env_file = '.env'
+if not os.path.exists(env_file):
+    if os.path.exists('backend/.env'):
+        env_file = 'backend/.env'
+    elif os.path.exists('../backend/.env'):
+        env_file = '../backend/.env'
 
-SESSION_SECRET_KEY = config('SESSION_SECRET_KEY', cast=str)
-BASE_URL = config('BASE_URL', cast=str)
-FRONT_END_URL = config('FRONT_END_URL', cast=str)
-GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', cast=str)
-GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', cast=str)
-GITHUB_CLIENT_ID = config('GITHUB_CLIENT_ID', cast=str)
-GITHUB_CLIENT_SECRET = config('GITHUB_CLIENT_SECRET', cast=str)
-DATABASE_URL = config('DATABASE_URL', cast=str)
+config = Config(env_file)
+
+SESSION_SECRET_KEY = config('SESSION_SECRET_KEY', cast=str, default="00266e1f1ffd4e95b114e072225d3923ef6327bad4a277f60474a1ca62f63f35")
+BASE_URL = config('BASE_URL', cast=str, default="http://localhost:8000")
+FRONT_END_URL = config('FRONT_END_URL', cast=str, default="http://localhost:5173")
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', cast=str, default="")
+GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', cast=str, default="")
+GITHUB_CLIENT_ID = config('GITHUB_CLIENT_ID', cast=str, default="")
+GITHUB_CLIENT_SECRET = config('GITHUB_CLIENT_SECRET', cast=str, default="")
+DATABASE_URL = config('DATABASE_URL', cast=str, default="postgresql://user:password@localhost:5432/codesense_ai")
 
 # Ollama & Embedding models
 OLLAMA_BASE_URL = config('OLLAMA_BASE_URL', cast=str, default="http://localhost:11434")

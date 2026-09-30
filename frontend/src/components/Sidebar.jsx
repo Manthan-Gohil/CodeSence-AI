@@ -8,11 +8,15 @@ import {
   KeyRound,
   XCircle,
   CheckCircle2,
-  Home
+  Home,
+  ChevronRight,
+  Settings,
+  Sparkles
 } from "lucide-react";
+
 import { useLocation, Link } from "react-router-dom";
 
-const RAW_BACKEND = import.meta.env.VITE_BACKEND_URL || "";
+const RAW_BACKEND = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:8000";
 const BACKEND_BASE = RAW_BACKEND.replace(/\/+$/, "");
 const api = (path) => `${BACKEND_BASE}${path.startsWith("/") ? path : `/${path}`}`;
 
@@ -164,14 +168,43 @@ const Sidebar = ({ open, setOpen, onLogout }) => {
 
   return (
     <>
+      {/* Floating expand button on right edge when sidebar is minimized */}
+      {!open && (
+        <button
+          onClick={() => setOpen(true)}
+          className="fixed top-16 right-0 z-30 flex items-center gap-1.5 px-3 py-2 bg-[#20252b] hover:bg-[#238636] text-gray-300 hover:text-white rounded-l-xl border-l border-t border-b border-gray-700/80 shadow-2xl transition-all duration-200 cursor-pointer group text-xs font-semibold"
+          title="Open AI & Settings Sidebar"
+          aria-label="Open AI and Settings Sidebar"
+        >
+          <Settings className="w-4 h-4 text-[#2ea043] group-hover:text-white transition-colors" />
+          <span className="hidden sm:inline">Settings</span>
+        </button>
+      )}
+
       <div
         ref={ref}
-        className={`fixed top-0 right-0 h-full bg-gradient-to-br from-[#23272f] to-[#181b20] text-gray-100 shadow-xl transition-all duration-300 z-40 border-l border-gray-800 ${
-          open ? "translate-x-0" : "translate-x-80"
-        } rounded-l-3xl`}
-        style={{ minWidth: "16rem" }}
+        className={`fixed top-0 right-0 h-full bg-gradient-to-br from-[#23272f] to-[#181b20] text-gray-100 shadow-2xl transition-transform duration-300 z-50 border-l border-gray-800 ${
+          open ? "translate-x-0" : "translate-x-full"
+        } rounded-l-3xl overflow-y-auto w-72 max-w-[85vw] flex flex-col`}
       >
-        <div className="flex flex-col items-center mt-10 mb-8">
+        {/* Minimize Header */}
+        <div className="flex items-center justify-between px-5 pt-4 pb-2 border-b border-gray-800/80">
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4 text-[#2ea043]" />
+            <span className="text-xs font-bold uppercase tracking-wider text-gray-300">Settings & AI</span>
+          </div>
+          <button
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-gray-400 hover:text-white bg-[#161b22] hover:bg-[#21262d] rounded-lg border border-gray-700/60 transition cursor-pointer"
+            title="Minimize sidebar"
+            aria-label="Minimize sidebar"
+          >
+            <span>Minimize</span>
+            <ChevronRight className="w-4 h-4 text-[#2ea043]" />
+          </button>
+        </div>
+
+        <div className="flex flex-col items-center mt-6 mb-6">
           <img src={avatar} className="h-16 w-16 rounded-full border-4 border-[#238636] shadow-lg" alt="User" />
           <span className="mt-3 text-lg font-semibold text-gray-200 break-all text-center">
             {user?.name || user?.login || user?.email}
@@ -208,95 +241,36 @@ const Sidebar = ({ open, setOpen, onLogout }) => {
         </nav>
 
         <div className="px-4 py-3 border-t border-gray-700 mt-6">
-          <div className="mt-3 flex flex-col items-center gap-2">
-            <span className="text-sm text-gray-400 self-start">Provider</span>
-            <ToggleSwitch
-              label="OpenAI"
-              isOn={provider === "openai"}
-              onToggle={() => setProvider("openai")}
-            />
-            <ToggleSwitch
-              label="Gemini"
-              isOn={provider === "gemini"}
-              onToggle={() => setProvider("gemini")}
-            />
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider">AI Engine</span>
           </div>
-          <span className="text-sm text-gray-400 mt-4 block">API Key</span>
 
-          {storedApiKey ? (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="flex-1 bg-[#20252b] text-gray-200 px-3 py-2 rounded break-all">
-                {storedApiKey}
+          <div className="p-3 rounded-xl bg-[#161b22] border border-emerald-500/30 flex flex-col gap-2 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-gray-100 flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse inline-block"></span>
+                Google Gemini
               </span>
-              <button
-                onClick={handleRemoveKey}
-                className="flex items-center gap-1 px-3 py-2 bg-red-600 rounded-lg text-white text-sm hover:bg-red-500 transition"
-              >
-                <XCircle className="w-4 h-4" /> Remove
-              </button>
+              <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-400 border border-emerald-500/40">
+                Default
+              </span>
             </div>
-          ) : showInput ? (
-            <label className="flex flex-col gap-1 mt-2">
-              <span className="text-sm text-gray-300 flex items-center gap-2 font-semibold">
-                <KeyRound className="inline w-5 h-5 text-[#2ea043]" />
-                {validating
-                  ? "Validating key..."
-                  : apiKeyValid
-                  ? "Key valid!"
-                  : `Enter your ${provider === "gemini" ? "Gemini" : "OpenAI"} API key`}
-                {apiKeyValid && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                {!apiKeyValid && apiKeyInput && !validating && (
-                  <XCircle className="w-4 h-4 text-red-400" />
-                )}
+
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Powered by Google Gemini LLM via server configuration for high-speed neural code comprehension.
+            </p>
+
+            <div className="mt-1 pt-2 border-t border-gray-800/80 flex items-center justify-between text-[11px] text-gray-400">
+              <span>Status</span>
+              <span className="text-emerald-400 font-medium flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Connected
               </span>
-              <div className="flex gap-2">
-                <input
-                  type="password"
-                  placeholder={provider === "gemini" ? "AI..." : "sk-..."}
-                  value={apiKeyInput}
-                  onChange={(e) => {
-                    setApiKeyInput(e.target.value);
-                    setApiKeyValid(false);
-                    if (error) setError("");
-                  }}
-                  className="flex-1 bg-[#161b22] border border-[#232b36] rounded-lg px-3 py-2 text-gray-200 placeholder-gray-500 outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] transition"
-                />
-                <button
-                  type="button"
-                  onClick={handleValidateKey}
-                  disabled={validating || apiKeyValid}
-                  className={`px-4 py-2 rounded-lg font-semibold text-base shadow transition ${
-                    validating || apiKeyValid
-                      ? "bg-gray-600 text-gray-400 cursor-not-allowed"
-                      : "bg-green-500 text-white hover:bg-green-400"
-                  }`}
-                >
-                  {validating ? "Validating..." : apiKeyValid ? "Valid!" : "Validate"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowInput(false);
-                    setApiKeyInput("");
-                    setError("");
-                  }}
-                  className="px-4 py-2 rounded-lg text-base font-semibold bg-gray-700 hover:bg-gray-600 text-gray-200 transition"
-                >
-                  Cancel
-                </button>
-              </div>
-              {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-            </label>
-          ) : (
-            <button
-              onClick={() => setShowInput(true)}
-              className="flex items-center gap-1 px-3 py-2 bg-blue-600 rounded-lg text-white text-sm hover:bg-blue-500 transition mt-2"
-            >
-              <KeyRound className="w-4 h-4" /> Add Key
-            </button>
-          )}
+            </div>
+          </div>
         </div>
       </div>
+
 
       {open && (
         <div

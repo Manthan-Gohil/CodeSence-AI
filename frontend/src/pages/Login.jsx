@@ -1,5 +1,5 @@
 import React from "react";
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const Login = () => (
   <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900 text-white">

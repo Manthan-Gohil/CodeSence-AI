@@ -92,7 +92,8 @@ def chat_with_rag(query: str, namespace: str, provider: str = "ollama", api_key:
         return_source_documents=True,
         chain_type="stuff"
     )
-    return qa(query)['result']
+    res = qa.invoke({"query": query})
+    return res.get('result', str(res))
 
 def validate_key(provider: str, api_key: str) -> bool:
     try:

@@ -43,9 +43,10 @@ const features = [
   },
   {
     icon: KeyRound,
-    title: "Secure API Key Management",
-    description: "Your OpenAI API key is encrypted per-user, can be changed or removed at any time from the sidebar."
+    title: "Google Gemini Intelligence",
+    description: "Powered by Google Gemini LLM for high-speed neural codebase analysis and instant answers."
   },
+
   {
     icon: Star,
     title: "One-Click Setup",
@@ -169,8 +170,9 @@ export default function Home() {
               </h1>
               <p className="text-lg text-gray-100 mb-3 drop-shadow-md max-w-sm pl-1 md:pl-4">
                 <span className="font-medium">
-                  Paste a GitHub repo URL, add your OpenAI key, and start chatting with your codebase using advanced RAG AI.
+                  Paste any public GitHub repo URL and start chatting with your codebase using advanced RAG AI powered by Google Gemini.
                 </span>
+
               </p>
               {/* TIP: italic style (not Italian language) */}
               <p className="italic text-[#98e0ba] mb-6 max-w-xs pl-1 md:pl-4" style={{ fontSize: "1.05rem" }}>

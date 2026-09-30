@@ -3,19 +3,27 @@
 Data Service - Owns GitHub repo ingestion, PostgreSQL metadata storage, file tree/hierarchy data
 """
 import os
+import re
 import json
+import io
+import zipfile
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from typing import Optional, List, Dict
 from fastapi import FastAPI, HTTPException, Body, Depends
 from pydantic import BaseModel
-from sqlalchemy import create_engine, Column, String, Text, DateTime
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, Column, String, Text, DateTime, text
+from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from datetime import datetime
 
 app = FastAPI(title="Data Service", version="1.0.0")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/codesense_ai")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:8002")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -34,7 +42,7 @@ class ActiveRepo(Base):
     __tablename__ = "active_repos"
     user_id = Column(String, primary_key=True)
     repo_url = Column(String, nullable=False)
-    provider = Column(String, nullable=False, default="ollama")
+    provider = Column(String, nullable=False, default="gemini")
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class ChatMessage(Base):
@@ -58,7 +66,9 @@ def get_db():
 class IngestRequest(BaseModel):
     repo_url: str
     user_id: str
-    provider: str = "ollama"
+    provider: str = "gemini"
+    api_key: Optional[str] = None
+
 
 class IngestResponse(BaseModel):
     ok: bool
@@ -94,60 +104,141 @@ def get_auth_headers():
         headers["Authorization"] = f"token {GITHUB_TOKEN}"
     return headers
 
+def parse_github_url(url: str) -> tuple:
+    """Parse owner and repo from any GitHub URL format"""
+    clean = url.strip()
+    clean = re.sub(r'^(https?://)?(www\.)?github\.com/', '', clean)
+    clean = re.sub(r'^git@github\.com:', '', clean)
+    clean = clean.rstrip('/')
+    if clean.endswith('.git'):
+        clean = clean[:-4]
+    # Remove any trailing branch/tree paths like /tree/main
+    parts = clean.split('/')
+    if len(parts) >= 2:
+        return parts[0], parts[1]
+    raise HTTPException(400, f"Invalid GitHub repository URL: '{url}'. Expected format: https://github.com/owner/repo")
+
 def list_and_get_files(owner: str, repo: str) -> List[Dict]:
-    """Fetch all files from a GitHub repo"""
+    """Fetch files from a GitHub repo efficiently via zipball or recursive tree fallback"""
     headers = get_auth_headers()
     files = []
     
-    def fetch_tree(sha: str, path: str = ""):
+    # 1. Try fast in-memory zipball download first
+    try:
+        repo_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers, timeout=15)
+        default_branch = "main"
+        if repo_resp.status_code == 200:
+            default_branch = repo_resp.json().get('default_branch', 'main')
+        
+        zip_url = f"{GITHUB_API}/repos/{owner}/{repo}/zipball/{default_branch}"
+        zresp = requests.get(zip_url, headers=headers, timeout=45)
+        if zresp.status_code == 200 and len(zresp.content) > 0:
+            z = zipfile.ZipFile(io.BytesIO(zresp.content))
+            valid_exts = (
+                '.md', '.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.html', '.css',
+                '.yaml', '.yml', '.txt', '.sh', '.sql', '.rs', '.go', '.java', '.c',
+                '.cpp', '.h', '.hpp', '.toml', 'Dockerfile', 'Makefile'
+            )
+            ignore_dirs = ('node_modules/', '.git/', 'dist/', 'build/', '.next/', 'venv/', '__pycache__/', '.vscode/', '.idea/')
+            ignore_files = ('package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'poetry.lock')
+            
+            for file_info in z.infolist():
+                if file_info.is_dir():
+                    continue
+                rel_path = file_info.filename.split('/', 1)[-1] if '/' in file_info.filename else file_info.filename
+                
+                if any(rel_path.startswith(d) or f"/{d}" in rel_path for d in ignore_dirs):
+                    continue
+                if any(rel_path.endswith(f) for f in ignore_files):
+                    continue
+                if not any(rel_path.endswith(ext) or rel_path == ext for ext in valid_exts):
+                    continue
+                if file_info.file_size > 150000:
+                    continue
+                
+                try:
+                    content_bytes = z.read(file_info)
+                    text_content = content_bytes.decode('utf-8', errors='ignore')
+                    if text_content.strip():
+                        files.append({
+                            'path': rel_path,
+                            'content': text_content,
+                            'size': file_info.file_size
+                        })
+                except Exception:
+                    continue
+            
+            if files:
+                # Prioritize README and documentation first
+                files.sort(key=lambda x: (0 if 'readme' in x['path'].lower() else (1 if x['path'].endswith('.md') else 2)))
+                return files
+    except Exception as e:
+        print(f"Zipball fetch failed: {e}, falling back to tree API")
+
+    # 2. Fallback to recursive tree if zipball failed
+    def fetch_tree(sha: str):
         url = f"{GITHUB_API}/repos/{owner}/{repo}/git/trees/{sha}?recursive=1"
-        resp = requests.get(url, headers=headers)
+        resp = requests.get(url, headers=headers, timeout=20)
         if resp.status_code != 200:
             return
         tree = resp.json().get('tree', [])
-        for item in tree:
-            if item['type'] == 'blob':
-                file_url = f"{GITHUB_API}/repos/{owner}/{repo}/contents/{item['path']}"
-                file_resp = requests.get(file_url, headers=headers)
-                if file_resp.status_code == 200:
-                    content = file_resp.json()
-                    if content.get('encoding') == 'base64':
-                        import base64
-                        file_content = base64.b64decode(content['content']).decode('utf-8', errors='ignore')
-                    else:
-                        file_content = content.get('content', '')
+        valid_items = [
+            it for it in tree 
+            if it.get('type') == 'blob' 
+            and not any(x in it.get('path', '') for x in ['node_modules/', '.git/', 'package-lock.json', 'yarn.lock'])
+            and any(it.get('path', '').endswith(ext) for ext in ['.md', '.py', '.js', '.jsx', '.ts', '.tsx', '.json', '.html', '.css', '.yaml', '.yml', '.txt'])
+        ]
+        valid_items.sort(key=lambda x: (0 if 'readme' in x['path'].lower() else (1 if x['path'].endswith('.md') else 2)))
+        for item in valid_items[:80]:
+            file_url = f"{GITHUB_API}/repos/{owner}/{repo}/contents/{item['path']}"
+            file_resp = requests.get(file_url, headers=headers, timeout=10)
+            if file_resp.status_code == 200:
+                content = file_resp.json()
+                if content.get('encoding') == 'base64':
+                    import base64
+                    file_content = base64.b64decode(content['content']).decode('utf-8', errors='ignore')
+                else:
+                    file_content = content.get('content', '')
+                if file_content.strip():
                     files.append({
                         'path': item['path'],
                         'content': file_content,
                         'size': item.get('size', 0)
                     })
-    
-    # Get default branch
-    repo_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers)
-    if repo_resp.status_code == 200:
-        default_branch = repo_resp.json().get('default_branch', 'main')
-        branch_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/branches/{default_branch}", headers=headers)
+
+    try:
+        repo_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers, timeout=15)
+        default_branch = "main"
+        if repo_resp.status_code == 200:
+            default_branch = repo_resp.json().get('default_branch', 'main')
+        branch_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/branches/{default_branch}", headers=headers, timeout=15)
         if branch_resp.status_code == 200:
             commit_sha = branch_resp.json().get('commit', {}).get('sha')
             if commit_sha:
                 fetch_tree(commit_sha)
-    
+    except Exception as e:
+        print(f"Fallback fetch_tree error: {e}")
+
     return files
 
-def chunk_files_mem(files: List[Dict], max_chunk_size: int = 800, overlap: int = 120) -> List[Dict]:
-    """Simple token-aware chunking"""
+def chunk_files_mem(files: List[Dict], max_chunk_size: int = 800, overlap: int = 120, max_chunks: int = 150) -> List[Dict]:
+    """Token-aware chunking with chunk cap to maintain fast embedding performance"""
     import tiktoken
     enc = tiktoken.get_encoding("cl100k_base")
     chunks = []
     
     for file in files:
-        content = file['content']
+        if len(chunks) >= max_chunks:
+            break
+        content = file.get('content', '')
         if not content:
             continue
             
         tokens = enc.encode(content)
         
         for i in range(0, len(tokens), max_chunk_size - overlap):
+            if len(chunks) >= max_chunks:
+                break
             chunk_tokens = tokens[i:i + max_chunk_size]
             chunk_text = enc.decode(chunk_tokens)
             chunks.append({
@@ -196,7 +287,7 @@ def analyze_repo(files: List[Dict]) -> Dict:
 async def health_check():
     try:
         db = SessionLocal()
-        db.execute("SELECT 1")
+        db.execute(text("SELECT 1"))
         db.close()
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
@@ -205,8 +296,7 @@ async def health_check():
 @app.post("/ingest", response_model=IngestResponse)
 async def ingest_repo(req: IngestRequest, db: Session = Depends(get_db)):
     try:
-        parts = req.repo_url.rstrip("/").split("/")
-        owner, repo = parts[-2], parts[-1]
+        owner, repo = parse_github_url(req.repo_url)
         namespace = f"{req.user_id}_{repo}"
         
         # Fetch files from GitHub
@@ -220,15 +310,21 @@ async def ingest_repo(req: IngestRequest, db: Session = Depends(get_db)):
         # Call RAG Service to store chunks
         try:
             rag_resp = requests.post(
-                "http://localhost:8002/chunks/upsert",
-                json={"chunks": chunks, "namespace": namespace, "provider": req.provider},
-                timeout=60
+                f"{RAG_SERVICE_URL}/chunks/upsert",
+                json={"chunks": chunks, "namespace": namespace, "provider": req.provider, "api_key": req.api_key},
+                timeout=300
             )
             rag_resp.raise_for_status()
             chunks_added = rag_resp.json().get("chunks_added", len(chunks))
         except Exception as e:
-            print(f"RAG service call failed: {e}")
-            chunks_added = len(chunks)
+            err_detail = str(e)
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    err_detail = e.response.json().get("detail", e.response.text)
+                except Exception:
+                    err_detail = e.response.text or str(e)
+            print(f"RAG service call failed: {err_detail}")
+            raise HTTPException(502, f"RAG service indexing failed: {err_detail}")
         
         # Get repo metadata from GitHub
         headers = get_auth_headers()
@@ -279,7 +375,14 @@ async def ingest_repo(req: IngestRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/metadata", response_model=RepoMetadataResponse)
-async def get_metadata(repo_url: str = Body(..., embed=True), db: Session = Depends(get_db)):
+async def get_metadata(body: Dict = Body(...), db: Session = Depends(get_db)):
+    repo_url = body.get("repo_url")
+    if not repo_url and "user_id" in body:
+        active = db.query(ActiveRepo).filter(ActiveRepo.user_id == body["user_id"]).first()
+        if active:
+            repo_url = active.repo_url
+    if not repo_url:
+        raise HTTPException(400, "repo_url or user_id required")
     meta = db.query(RepoMetadata).filter(RepoMetadata.repo_url == repo_url).first()
     if not meta:
         raise HTTPException(404, "Metadata not found")

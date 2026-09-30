@@ -1,26 +1,40 @@
 import os
+import base64
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
 load_dotenv()
 
 ENCRYPTION_KEY = os.getenv("ENCRYPTION_KEY")
-if not ENCRYPTION_KEY:
-    raise ValueError("ENCRYPTION_KEY not found in environment variables")
 
-cipher_suite = Fernet(ENCRYPTION_KEY.encode())
+cipher_suite = None
+if ENCRYPTION_KEY:
+    try:
+        cipher_suite = Fernet(ENCRYPTION_KEY.encode())
+    except Exception:
+        try:
+            # Fallback: derive 32 url-safe base64 bytes if key is not properly formatted
+            safe_key = base64.urlsafe_b64encode(ENCRYPTION_KEY.encode().ljust(32)[:32])
+            cipher_suite = Fernet(safe_key)
+        except Exception:
+            cipher_suite = None
 
 def encrypt_key(plaintext_key: str) -> str:
     if not plaintext_key:
         return ""
-    encrypted_key = cipher_suite.encrypt(plaintext_key.encode())
-    return encrypted_key.decode()
+    if cipher_suite:
+        try:
+            return cipher_suite.encrypt(plaintext_key.encode()).decode()
+        except Exception:
+            return plaintext_key
+    return plaintext_key
 
 def decrypt_key(encrypted_key: str) -> str:
     if not encrypted_key:
         return ""
-    try:
-        decrypted_key = cipher_suite.decrypt(encrypted_key.encode())
-        return decrypted_key.decode()
-    except Exception:
-        return encrypted_key
+    if cipher_suite:
+        try:
+            return cipher_suite.decrypt(encrypted_key.encode()).decode()
+        except Exception:
+            return encrypted_key
+    return encrypted_key

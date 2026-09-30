@@ -28,11 +28,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+SESSION_SECRET = os.environ.get('SESSION_SECRET_KEY') or "00266e1f1ffd4e95b114e072225d3923ef6327bad4a277f60474a1ca62f63f35"
+HTTPS_ONLY = os.environ.get('HTTPS_ONLY', 'false').lower() == 'true'
+
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.environ.get('SESSION_SECRET_KEY'),
-    https_only=True,
-    same_site="none"
+    secret_key=SESSION_SECRET,
+    https_only=HTTPS_ONLY,
+    same_site="none" if HTTPS_ONLY else "lax"
 )
 
 
@@ -40,15 +43,25 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(ai.router, prefix="/api")
 app.include_router(repo.router, prefix="/api")
 app.include_router(discuss.router, prefix="/api")
-app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")
+
+# Mount frontend/dist if available
+dist_dir = None
+for candidate in ["frontend/dist", "../frontend/dist", "dist"]:
+    if os.path.isdir(candidate):
+        dist_dir = candidate
+        break
+
+if dist_dir:
+    app.mount("/", StaticFiles(directory=dist_dir, html=True), name="static")
 
 @app.exception_handler(404)
 async def custom_404_handler(request: Request, exc):
     if request.url.path.startswith("/api"):
         return JSONResponse({"detail": "Not Found"}, status_code=404)
-    index_path = os.path.join("frontend", "dist", "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
+    if dist_dir:
+        index_path = os.path.join(dist_dir, "index.html")
+        if os.path.exists(index_path):
+            return FileResponse(index_path)
     return JSONResponse({"detail": "Not Found"}, status_code=404)
 
 if __name__ == '__main__':

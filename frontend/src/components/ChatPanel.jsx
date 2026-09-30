@@ -49,8 +49,9 @@ export default function ChatPanel({
         >
           <input
             className="flex-1 bg-[#20252b] border border-[#232b36] rounded-lg px-4 py-3 text-base text-gray-200 placeholder-gray-500 outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] transition"
-            placeholder={canChat ? "Ask anything about your repo…" : "Add your OpenAI API key from sidebar first..."}
+            placeholder="Ask anything about your repo…"
             value={msg}
+
             onChange={e => setMsg(e.target.value)}
             spellCheck={false}
             autoFocus={canChat}

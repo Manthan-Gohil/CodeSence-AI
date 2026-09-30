@@ -1,0 +1,8 @@
+venv
+.venv
+__pycache__
+*.pyc
+faiss_index
+chroma_db
+.git
+.pytest_cache

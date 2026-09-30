@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import axios from "axios";
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 const AuthContext = createContext();
 
@@ -11,7 +11,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [provider, setProvider] = useState("openai");
+  const [provider, setProvider] = useState("gemini");
   // Fetch user from backend session on mount
   useEffect(() => {
     //console.log("[DEBUG][AuthContext] Attempting to fetch user from backend:", `${BACKEND_URL}/api/user`);

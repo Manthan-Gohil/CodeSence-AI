@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -22,7 +20,7 @@ services:
   # FAISS Vector Store (file-based, no separate container needed - uses volume)
   # FAISS data persisted in ./faiss_index volume
 
-  # Ollama with Code Llama
+  # Ollama with fast, lightweight code model (qwen2.5-coder:1.5b)
   ollama:
     image: ollama/ollama:latest
     container_name: codesense-ollama
@@ -32,19 +30,12 @@ services:
       - "11434:11434"
     environment:
       - OLLAMA_HOST=0.0.0.0
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     entrypoint: >
       /bin/sh -c "
         ollama serve &
         sleep 5 &&
         ollama pull nomic-embed-text &&
-        ollama pull codellama &&
+        ollama pull qwen2.5-coder:1.5b &&
         wait
       "
 
@@ -54,10 +45,12 @@ services:
       context: ./backend
       dockerfile: Dockerfile.service
     container_name: codesense-data-service
+    env_file:
+      - backend/.env
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/codesense_ai
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
       - RAG_SERVICE_URL=http://rag-service:8002
+      - DEFAULT_LLM_PROVIDER=gemini
     ports:
       - "8003:8003"
     depends_on:
@@ -67,7 +60,8 @@ services:
         condition: service_started
     volumes:
       - ./backend:/app
-    command: uvicorn services.data_service.main:app --host 0.0.0.0 --port 8003 --reload
+      - /app/venv
+    command: uvicorn services.data_service.main:app --host 0.0.0.0 --port 8003 --reload --reload-dir /app/services
 
   # RAG Service - Chunking, embeddings, FAISS, retrieval
   rag-service:
@@ -75,11 +69,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile.service
     container_name: codesense-rag-service
+    env_file:
+      - backend/.env
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
       - EMBED_MODEL=nomic-embed-text
-      - LLM_MODEL=codellama
+      - LLM_MODEL=qwen2.5-coder:1.5b
       - FAISS_INDEX_DIR=/app/faiss_index
+      - DEFAULT_LLM_PROVIDER=gemini
+      - GEMINI_MODEL=models/gemini-2.5-flash-lite
+      - MAX_OUTPUT_TOKENS=768
     ports:
       - "8002:8002"
     depends_on:
@@ -87,27 +86,33 @@ services:
         condition: service_started
     volumes:
       - ./backend:/app
+      - /app/venv
       - faiss_data:/app/faiss_index
-    command: uvicorn services.rag_service.main:app --host 0.0.0.0 --port 8002 --reload
+    command: uvicorn services.rag_service.main:app --host 0.0.0.0 --port 8002 --reload --reload-dir /app/services
 
-  # LLM Service - Ollama/Code Llama calls
+  # LLM Service - Ollama/Fast code model calls
   llm-service:
     build:
       context: ./backend
       dockerfile: Dockerfile.service
     container_name: codesense-llm-service
+    env_file:
+      - backend/.env
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
-      - LLM_MODEL=codellama
+      - LLM_MODEL=qwen2.5-coder:1.5b
       - EMBED_MODEL=nomic-embed-text
+      - MAX_OUTPUT_TOKENS=768
     ports:
       - "8001:8001"
+
     depends_on:
       ollama:
         condition: service_started
     volumes:
       - ./backend:/app
-    command: uvicorn services.llm_service.main:app --host 0.0.0.0 --port 8001 --reload
+      - /app/venv
+    command: uvicorn services.llm_service.main:app --host 0.0.0.0 --port 8001 --reload --reload-dir /app/services
 
   # Application Service - Orchestrates all services, serves frontend
   application-service:
@@ -115,18 +120,16 @@ services:
       context: ./backend
       dockerfile: Dockerfile.service
     container_name: codesense-application-service
+    env_file:
+      - backend/.env
     environment:
       - DATABASE_URL=postgresql://user:password@postgres:5432/codesense_ai
-      - SESSION_SECRET_KEY=${SESSION_SECRET_KEY}
       - FRONT_END_URL=http://localhost:5173
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - GITHUB_CLIENT_ID=${GITHUB_CLIENT_ID}
-      - GITHUB_CLIENT_SECRET=${GITHUB_CLIENT_SECRET}
-      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - RAG_SERVICE_URL=http://rag-service:8002
       - LLM_SERVICE_URL=http://llm-service:8001
       - DATA_SERVICE_URL=http://data-service:8003
+      - DEFAULT_LLM_PROVIDER=gemini
+
     ports:
       - "8000:8000"
     depends_on:
@@ -140,8 +143,9 @@ services:
         condition: service_started
     volumes:
       - ./backend:/app
+      - /app/venv
       - ./frontend/dist:/app/frontend/dist
-    command: uvicorn services.application_service.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn services.application_service.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir /app/services
 
   # Frontend (Vite dev server for development)
   frontend:
@@ -151,6 +155,7 @@ services:
     container_name: codesense-frontend
     environment:
       - VITE_API_URL=http://localhost:8000
+      - VITE_BACKEND_URL=http://localhost:8000
     ports:
       - "5173:5173"
     volumes:

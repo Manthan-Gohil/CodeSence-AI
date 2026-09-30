@@ -4,12 +4,12 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import LoadingScreen from "../components/LoadingScreen";
 import { useAuth } from "../context/AuthContext";
-import ApiKeyWarning from "../components/ApiKeyWarning";
 import RepoPanel from "../components/RepoPanel";
 import ChatPanel from "../components/ChatPanel";
-import { Github, AlertTriangle } from "lucide-react";
+import { Github, FolderGit2, Sparkles } from "lucide-react";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:8000";
 const loadingMessages = {
   ingest: [
     "Sneaking into your repo… hope there are no bugs!",
@@ -224,33 +224,10 @@ export default function Ai() {
   }
 
   useEffect(() => {
-    const fetchAnyKey = async () => {
-      if (!user?.id) {
-        setApiKeyExists(false);
-        return;
-      }
-      try {
-        const [openaiRes, geminiRes] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/ai/get_api_key`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: user.id, provider: "openai" }),
-          }),
-          fetch(`${BACKEND_URL}/api/ai/get_api_key`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: user.id, provider: "gemini" }),
-          }),
-        ]);
-        const [openaiData, geminiData] = await Promise.all([openaiRes.json(), geminiRes.json()]);
-        const exists = (openaiRes.ok && openaiData?.exists) || (geminiRes.ok && geminiData?.exists);
-        setApiKeyExists(Boolean(exists));
-      } catch {
-        setApiKeyExists(false);
-      }
-    };
-    fetchAnyKey();
-  }, [user?.id, globalLoading]);
+    // Gemini is configured on the backend server via .env by default
+    setApiKeyExists(true);
+  }, [user?.id, provider, globalLoading]);
+
 
   useEffect(() => {
     if (chatRef.current) {
@@ -333,10 +310,6 @@ export default function Ai() {
       alert("Please enter a repo URL.");
       return;
     }
-    if (!apiKeyExists) {
-      alert("Please add your OpenAI or Gemini API key from the sidebar first. If you have added then make sure to toggle on the correct provider");
-      return;
-    }
     setLoadingRepo(true);
     setGlobalLoading({ show: true, messages: loadingMessages.ingest, subtext: "Please do not close your browser. It's magic time." });
 
@@ -394,10 +367,11 @@ export default function Ai() {
 
   async function handleSend(e) {
     e.preventDefault();
-    if (!msg.trim() || !user || !repoData || !apiKeyExists) {
-      alert("Please enter a message and ensure your OpenAI or Gemini API key is set in the sidebar.");
+    if (!msg.trim() || !user || !repoData) {
+      alert("Please enter a message and make sure a repository is active.");
       return;
     }
+
     const newChat = [
       ...chat,
       {
@@ -449,23 +423,27 @@ export default function Ai() {
   }
 
   async function handleNewRepo() {
-    if (window.confirm("Switching repo will clear the current chat and context. Continue?")) {
-      setGlobalLoading({ show: true, messages: loadingMessages.switchRepo, subtext: "" });
-      try {
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
+    setGlobalLoading({ show: true, messages: loadingMessages.switchRepo, subtext: "" });
+    try {
+      if (user?.id) {
         await fetch(`${BACKEND_URL}/api/repo/switch_repo`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: user.id }),
         });
-      } catch {}
-      setRepoUrl("");
-      setRepoData(null);
-      setSubmitted(false);
-      setChat([
-        { sender: "ai", text: "Paste your GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
-      ]);
-      setGlobalLoading({ show: false, messages: [], subtext: "" });
+      }
+    } catch (e) {
+      console.error("Failed to switch repo:", e);
     }
+    setRepoUrl("");
+    setRepoData(null);
+    setSubmitted(false);
+    setChat([
+      { sender: "ai", text: "Paste any GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
+    ]);
+    setGlobalLoading({ show: false, messages: [], subtext: "" });
   }
 
   useEffect(() => {
@@ -476,7 +454,6 @@ export default function Ai() {
   }, []);
 
   const logoutWithClear = async () => logout();
-  const showApiKeyBlur = apiKeyExists === false;
 
   return (
     <div className="flex min-h-screen bg-[#161b22] flex-col relative overflow-hidden">
@@ -499,35 +476,44 @@ export default function Ai() {
 
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onLogout={logoutWithClear} />
       <div className="flex items-center justify-between px-6 py-4 bg-[#161b22] border-b border-[#21262d] w-full z-20 h-16">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <img src="/logo.png" className="h-8 w-8 rounded-full" alt="CodeSense AI" />
           <span className="font-bold text-[#2ea043] ml-1 text-xl">AI Chat</span>
+          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            Default: Google Gemini
+          </span>
         </div>
-        {!sidebarOpen && (
-          <button
-            className="z-50 p-0 outline-none border-none bg-transparent"
-            style={{ boxShadow: "none" }}
-            onClick={() => setSidebarOpen(true)}
-            aria-label="Open sidebar"
-          >
-            <img
-              src={user?.avatar_url || user?.picture || "/logo.png"}
-              className="h-10 w-10 rounded-full border border-[#2ea043] bg-[#161b22]"
-              alt="Profile"
-            />
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {submitted && (
+            <button
+              onClick={handleNewRepo}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#20252b] hover:bg-[#238636] text-gray-200 hover:text-white border border-[#30363d] text-xs font-semibold transition shadow-sm cursor-pointer"
+              title="Load or switch to a different GitHub repository"
+            >
+              <FolderGit2 className="w-4 h-4 text-[#2ea043]" />
+              <span>Switch Repo</span>
+            </button>
+          )}
+          {!sidebarOpen && (
+            <button
+              className="z-30 p-0 outline-none border-none bg-transparent cursor-pointer"
+              style={{ boxShadow: "none" }}
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar"
+              title="Settings & Model Provider"
+            >
+              <img
+                src={user?.avatar_url || user?.picture || "/logo.png"}
+                className="h-9 w-9 rounded-full border border-[#2ea043] bg-[#161b22]"
+                alt="Profile"
+              />
+            </button>
+          )}
+        </div>
       </div>
       <div className="relative flex-1 flex flex-col w-full min-h-0">
-        {showApiKeyBlur && (
-          <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
-            <div className="absolute inset-0 bg-[#0d1117]/70 backdrop-blur-[6px] transition-all duration-200" />
-            <div className="relative z-50 pointer-events-auto">
-              <ApiKeyWarning />
-            </div>
-          </div>
-        )}
-        <main className={`flex flex-col flex-1 w-full overflow-hidden transition-all duration-300 ${showApiKeyBlur ? "pointer-events-none select-none" : ""}`}>
+        <main className="flex flex-col flex-1 w-full overflow-hidden transition-all duration-300">
           {!submitted && (
             <div className="flex flex-col items-center justify-center flex-1 px-4">
               <form
@@ -545,12 +531,12 @@ export default function Ai() {
                       onChange={e => setRepoUrl(e.target.value)}
                       spellCheck={false}
                       required
-                      disabled={loadingRepo || !apiKeyExists}
+                      disabled={loadingRepo}
                     />
                     <button
                       type="submit"
                       className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2ea043] hover:bg-[#238636] text-white font-semibold text-base shadow transition"
-                      disabled={loadingRepo || !apiKeyExists}
+                      disabled={loadingRepo}
                     >
                       {loadingRepo ? (
                         <span className="animate-spin mr-1">⏳</span>
@@ -561,47 +547,37 @@ export default function Ai() {
                     </button>
                   </div>
                 </label>
-                <div className="text-xs text-gray-400 mt-2 italic">
-                  <b>Your OpenAI or Gemini API key is stored securely and can be removed completely from our system whenever you want using the sidebar. It is only accessible to you.</b>
+                <div className="text-xs text-gray-400 mt-1 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                  <span>Neural RAG reasoning active via <b>Google Gemini AI</b>.</span>
                 </div>
               </form>
-              {apiKeyExists === false && !sidebarOpen && <ApiKeyWarning />}
-              <div className="w-full max-w-2xl mx-auto mt-8 bg-[#21262d] border border-[#2ea043]/20 rounded-lg p-5 shadow-sm">
-                <h2 className="text-lg font-bold text-[#2ea043] mb-2 flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-[#fbbf24]" />
-                  Setup Guide: Using Your Own API Key
+              <div className="w-full max-w-2xl mx-auto mt-6 bg-[#21262d] border border-emerald-500/20 rounded-xl p-5 shadow-sm">
+                <h2 className="text-base font-bold text-emerald-400 mb-2 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-emerald-400" />
+                  Instant Codebase RAG with Google Gemini
                 </h2>
-                <ol className="text-sm text-gray-200 space-y-2 list-decimal list-inside pl-2 mb-3">
-                  <li>
-                    For <b>OpenAI</b>, create a key at{" "}
-                    <a
-                      href="https://platform.openai.com/api-keys"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#2ea043] underline"
-                    >
-                      platform.openai.com/api-keys
-                    </a>
-                    .
-                  </li>
-                  <li>
-                    For <b>Gemini</b>, create a key at{" "}
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[#2ea043] underline"
-                    >
-                      aistudio.google.com/app/apikey
-                    </a>
-                    .
-                  </li>
-                  <li>Paste either key in the sidebar. Having any one of them is enough to proceed.</li>
-                  <li>Use only your personal key; you can remove it anytime from the sidebar.</li>
-                </ol>
+                <p className="text-xs text-gray-300 leading-relaxed mb-3">
+                  Enter any public GitHub repository URL above. CodeSense AI indexes the repository and provides sub-second answers using Google Gemini LLM.
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-800 text-xs text-gray-300">
+                  <div className="bg-[#161b22] p-2.5 rounded-lg border border-gray-800">
+                    <span className="font-semibold text-emerald-400 block mb-1">⚡ Fast Reasoning</span>
+                    Answers in 1-2s without CPU timeouts.
+                  </div>
+                  <div className="bg-[#161b22] p-2.5 rounded-lg border border-gray-800">
+                    <span className="font-semibold text-emerald-400 block mb-1">📁 Smart Indexing</span>
+                    Code AST and README prioritized for high accuracy.
+                  </div>
+                  <div className="bg-[#161b22] p-2.5 rounded-lg border border-gray-800">
+                    <span className="font-semibold text-emerald-400 block mb-1">🔒 Ready Out-of-the-Box</span>
+                    Configured via server .env without manual setup.
+                  </div>
+                </div>
               </div>
             </div>
           )}
+
           {submitted && repoData && (
             <div className="w-full max-w-[99vw] mx-auto flex flex-1 min-h-0 flex-col md:flex-row gap-4 p-4">
               <RepoPanel repoData={repoData} handleNewRepo={handleNewRepo} />
