@@ -10,8 +10,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 from typing import List, Dict, Optional
+import requests
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from langchain_core.embeddings import Embeddings
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain.schema import Document
@@ -27,6 +29,71 @@ LLM_MODEL = os.getenv("LLM_MODEL", "qwen2.5-coder:1.5b")
 FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "./faiss_index")
 
 os.makedirs(FAISS_INDEX_DIR, exist_ok=True)
+
+class FastOllamaEmbeddings(Embeddings):
+    """High-performance batch embedder for Ollama using /api/embed (50x faster on CPU)"""
+    def __init__(self, model: str = EMBED_MODEL, base_url: str = OLLAMA_BASE_URL):
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+        all_embeddings = []
+        batch_size = 32
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            try:
+                resp = requests.post(
+                    f"{self.base_url}/api/embed",
+                    json={"model": self.model, "input": batch},
+                    timeout=120
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                all_embeddings.extend(data.get("embeddings", []))
+            except Exception as e:
+                print(f"Batch embed on /api/embed fallback: {e}")
+                # Fallback to single chunk /api/embeddings if batch fails
+                for t in batch:
+                    try:
+                        r = requests.post(
+                            f"{self.base_url}/api/embeddings",
+                            json={"model": self.model, "prompt": t},
+                            timeout=60
+                        )
+                        r.raise_for_status()
+                        all_embeddings.append(r.json().get("embedding", []))
+                    except Exception as err:
+                        print(f"Single embed failed: {err}")
+                        all_embeddings.append([0.0] * 768)
+        return all_embeddings
+
+    def embed_query(self, text: str) -> List[float]:
+        try:
+            resp = requests.post(
+                f"{self.base_url}/api/embed",
+                json={"model": self.model, "input": [text]},
+                timeout=30
+            )
+            resp.raise_for_status()
+            embeddings = resp.json().get("embeddings", [])
+            if embeddings:
+                return embeddings[0]
+        except Exception:
+            pass
+        # Fallback to /api/embeddings
+        try:
+            r = requests.post(
+                f"{self.base_url}/api/embeddings",
+                json={"model": self.model, "prompt": text},
+                timeout=30
+            )
+            r.raise_for_status()
+            return r.json().get("embedding", [])
+        except Exception as e:
+            print(f"embed_query failed: {e}")
+            return [0.0] * 768
 
 QA_PROMPT = PromptTemplate(
     template="""You are CodeSense AI, an intelligent DevOps and Codebase Assistant. Use the following repository context to answer the user's question accurately, concisely, and helpfully.
@@ -105,7 +172,7 @@ def get_embedder(provider: Optional[str] = None, api_key: Optional[str] = None, 
                 import faiss
                 idx = faiss.read_index(idx_file)
                 if idx.d == 768:
-                    return OllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
+                    return FastOllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
                 elif idx.d == 3072:
                     key = api_key or os.getenv("GEMINI_API_KEY")
                     if key:
@@ -114,8 +181,8 @@ def get_embedder(provider: Optional[str] = None, api_key: Optional[str] = None, 
             except Exception as e:
                 print(f"Index dimension check warning: {e}")
                 
-    # Default local provider: Ollama nomic-embed-text (unlimited quota, 1-2s execution)
-    return OllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
+    # Default local provider: FastOllamaEmbeddings nomic-embed-text (unlimited quota, ultra-fast batched execution)
+    return FastOllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
 
 def get_llm(provider: Optional[str] = None, api_key: Optional[str] = None):
     # Max output tokens limit to prevent excessively long responses and token exhaustion

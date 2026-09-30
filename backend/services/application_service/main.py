@@ -461,7 +461,7 @@ async def ingest_repo(req: IngestRepoRequest, db: Session = Depends(get_db)):
         resp = requests.post(
             f"{DATA_SERVICE_URL}/ingest",
             json=payload,
-            timeout=300
+            timeout=600
         )
         resp.raise_for_status()
         data = resp.json()

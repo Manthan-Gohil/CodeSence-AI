@@ -142,6 +142,7 @@ def list_and_get_files(owner: str, repo: str) -> List[Dict]:
             ignore_dirs = ('node_modules/', '.git/', 'dist/', 'build/', '.next/', 'venv/', '__pycache__/', '.vscode/', '.idea/')
             ignore_files = ('package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'Cargo.lock', 'poetry.lock')
             
+            valid_file_infos = []
             for file_info in z.infolist():
                 if file_info.is_dir():
                     continue
@@ -155,7 +156,11 @@ def list_and_get_files(owner: str, repo: str) -> List[Dict]:
                     continue
                 if file_info.file_size > 150000:
                     continue
-                
+                valid_file_infos.append((file_info, rel_path))
+
+            # Prioritize README and documentation first, then cap at 100 files
+            valid_file_infos.sort(key=lambda x: (0 if 'readme' in x[1].lower() else (1 if x[1].endswith('.md') else 2)))
+            for file_info, rel_path in valid_file_infos[:100]:
                 try:
                     content_bytes = z.read(file_info)
                     text_content = content_bytes.decode('utf-8', errors='ignore')
@@ -169,8 +174,6 @@ def list_and_get_files(owner: str, repo: str) -> List[Dict]:
                     continue
             
             if files:
-                # Prioritize README and documentation first
-                files.sort(key=lambda x: (0 if 'readme' in x['path'].lower() else (1 if x['path'].endswith('.md') else 2)))
                 return files
     except Exception as e:
         print(f"Zipball fetch failed: {e}, falling back to tree API")
@@ -272,10 +275,10 @@ def analyze_repo(files: List[Dict]) -> Dict:
     """Analyze repo for dependency graph"""
     deps = {}
     for file in files:
-        if file['path'].endswith(('.py', '.js', '.ts', '.java', '.go', '.rs')):
+        if file['path'].endswith(('.py', '.js', '.jsx', '.ts', '.tsx', '.java', '.go', '.rs')):
             # Simple import extraction
             imports = []
-            for line in file['content'].split('\n'):
+            for line in file.get('content', '').split('\n'):
                 line = line.strip()
                 if line.startswith(('import ', 'from ', 'require(', 'import(')):
                     imports.append(line[:200])
@@ -312,7 +315,7 @@ async def ingest_repo(req: IngestRequest, db: Session = Depends(get_db)):
             rag_resp = requests.post(
                 f"{RAG_SERVICE_URL}/chunks/upsert",
                 json={"chunks": chunks, "namespace": namespace, "provider": req.provider, "api_key": req.api_key},
-                timeout=300
+                timeout=600
             )
             rag_resp.raise_for_status()
             chunks_added = rag_resp.json().get("chunks_added", len(chunks))
@@ -326,19 +329,33 @@ async def ingest_repo(req: IngestRequest, db: Session = Depends(get_db)):
             print(f"RAG service call failed: {err_detail}")
             raise HTTPException(502, f"RAG service indexing failed: {err_detail}")
         
-        # Get repo metadata from GitHub
+        # Get repo metadata from GitHub with graceful fallback against rate limits
         headers = get_auth_headers()
-        repo_info = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers).json()
-        languages = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/languages", headers=headers).json()
-        contributors = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/contributors", headers=headers).json()
+        try:
+            r_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers, timeout=15)
+            repo_info = r_resp.json() if r_resp.status_code == 200 else {}
+        except Exception:
+            repo_info = {}
+
+        try:
+            l_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/languages", headers=headers, timeout=15)
+            languages = l_resp.json() if l_resp.status_code == 200 else {}
+        except Exception:
+            languages = {}
+
+        try:
+            c_resp = requests.get(f"{GITHUB_API}/repos/{owner}/{repo}/contributors", headers=headers, timeout=15)
+            contributors = c_resp.json() if c_resp.status_code == 200 else []
+        except Exception:
+            contributors = []
         
         analytics = {
-            "repo_name": repo_info.get("name"),
-            "owner": repo_info.get("owner", {}).get("login"),
-            "description": repo_info.get("description"),
-            "stars": repo_info.get("stargazers_count"),
-            "forks": repo_info.get("forks_count"),
-            "languages": languages,
+            "repo_name": repo_info.get("name") or repo,
+            "owner": (repo_info.get("owner") or {}).get("login") if isinstance(repo_info.get("owner"), dict) else owner,
+            "description": repo_info.get("description") or "",
+            "stars": repo_info.get("stargazers_count") or 0,
+            "forks": repo_info.get("forks_count") or 0,
+            "languages": languages if isinstance(languages, dict) else {},
             "contributors": [
                 {"login": c.get("login"), "contributions": c.get("contributions"), "avatar_url": c.get("avatar_url")}
                 for c in contributors[:10]
