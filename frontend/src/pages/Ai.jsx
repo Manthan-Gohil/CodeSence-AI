@@ -1,54 +1,36 @@
 // src/pages/Ai.jsx
-
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import Navbar from "../components/Navbar";
 import Sidebar from "../components/Sidebar";
 import LoadingScreen from "../components/LoadingScreen";
 import { useAuth } from "../context/AuthContext";
 import RepoPanel from "../components/RepoPanel";
 import ChatPanel from "../components/ChatPanel";
-import { Github, FolderGit2, Sparkles } from "lucide-react";
-
+import { Github, FolderGit2, Sparkles, Terminal, ArrowRight, CheckCircle2, Layers, Cpu } from "lucide-react";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || import.meta.env.VITE_API_URL || "http://localhost:8000";
+
 const loadingMessages = {
   ingest: [
-    "Sneaking into your repo… hope there are no bugs!",
-    "Waking up the code monkeys…",
-    "Polishing your commits…",
-    "Dusting off those README files…",
-    "Counting stars on your repo…",
-    "Petting the code cats…",
-    "Untangling spaghetti code…",
-    "Hunting for Easter eggs in your repo…",
-    "Convincing GitHub to share secrets…",
-    "Packing your code snacks…"
+    "Fetching repository archive from GitHub API…",
+    "Parsing AST syntax trees & dependencies…",
+    "Generating 768-dim batched vector embeddings…",
+    "Indexing chunks in FAISS vector store…",
+    "Assembling repository neural memory…"
   ],
   chatHistory: [
-    "Digging up your previous wisdom…",
-    "Scrolling through your genius…",
-    "Reading your chat like a detective…",
-    "Warming up the old conversations…",
-    "Sweeping digital footprints…"
+    "Retrieving conversation memory…",
+    "Loading encrypted vector history…"
   ],
   switchRepo: [
-    "Packing up your stuff…",
-    "Moving to a new repo neighborhood…",
-    "Changing addresses in code city…",
-    "Waving goodbye to your old repo…",
-    "Dusting off for a fresh start…"
+    "Deallocating active repository context…",
+    "Preparing clean vector environment…"
   ],
   deleteMessage: [
-    "Shredding your message into digital confetti…",
-    "Feeding your message to the recycle bin monster…",
-    "Disappearing your message like a magician…",
-    "Pretending your message never existed…",
-    "Launching your message into the void…"
+    "Purging record from PostgreSQL…"
   ],
   restore: [
-    "Resurrecting your last chat…",
-    "Summoning your old AI conversations…",
-    "Rewinding the code memories…",
-    "Teleporting to your last session…"
+    "Restoring previous repository session…"
   ]
 };
 
@@ -57,42 +39,54 @@ function IngestProgress({ visible, progress, checkpoints, onCancel }) {
   if (!visible) return null;
   const pct = Math.max(0, Math.min(100, progress));
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-[min(680px,90vw)] bg-[#0d1117] border border-[#21262d] rounded-2xl p-6 shadow-xl">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-white">Indexing your repo</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-fade-in">
+      <div className="w-full max-w-xl rounded-2xl border border-hairline-strong bg-[#0E1013] p-8 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-hairline pb-4">
+          <div>
+            <span className="label-mono text-[#6E747D]">indexing pipeline</span>
+            <h3 className="mt-1 text-base font-semibold text-[#F4F5F7]">Vectorizing Repository Codebase</h3>
+          </div>
           <button
-            className="text-gray-400 hover:text-gray-200 text-sm px-2 py-1 rounded-md border border-transparent hover:border-[#30363d]"
+            className="rounded border border-hairline bg-[#131518] px-3 py-1 text-xs font-mono text-[#6E747D] hover:text-[#F4F5F7] transition-colors"
             onClick={onCancel}
           >
             Cancel
           </button>
         </div>
-        <div className="w-full h-3 rounded-full bg-[#161b22] border border-[#30363d] overflow-hidden">
-          <div
-            className="h-full bg-[#2ea043] transition-all duration-300"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <div className="mt-2 text-xs text-gray-400">{pct}% complete</div>
 
-        <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {/* Progress Bar */}
+        <div className="mt-6">
+          <div className="flex justify-between text-xs font-mono text-[#6E747D] mb-2">
+            <span>Progress Status</span>
+            <span className="text-[#F4F5F7]">{pct}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-[#131518] border border-hairline overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r from-[#6E747D] via-[#E9EBEF] to-[#2EA043] transition-all duration-300"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Checkpoint checklist */}
+        <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {checkpoints.map((cp, idx) => (
             <li
               key={idx}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+              className={`flex items-center gap-2.5 rounded-lg border p-2.5 text-xs font-mono transition-all ${
                 cp.done
-                  ? "border-[#2ea043]/30 bg-[#1a2125]"
-                  : "border-[#2e3440]/40 bg-transparent"
+                  ? "border-hairline-strong bg-[#131518] text-[#F4F5F7]"
+                  : "border-hairline bg-[#0B0C0E] text-[#6E747D]"
               }`}
             >
-              <span className={`inline-flex h-2.5 w-2.5 rounded-full ${cp.done ? "bg-[#2ea043]" : "bg-[#6e7681]"}`} />
-              <span className={`text-sm ${cp.done ? "text-gray-100" : "text-gray-400"}`}>{cp.label}</span>
+              <span className={`h-2 w-2 rounded-full ${cp.done ? "bg-[#2EA043]" : "bg-[#4B515D]"}`} />
+              <span className="truncate">{cp.label}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-3 text-[13px] text-gray-400">
-          Chat will be available once your entire repository has been indexed and analyzed. Please wait until the process is fully complete.
+
+        <p className="mt-6 text-[11px] font-mono text-[#6E747D] leading-relaxed border-t border-hairline pt-4">
+          Chat becomes active once the FAISS vector index is populated with chunks. Sub-3s response guaranteed.
         </p>
       </div>
     </div>
@@ -107,7 +101,7 @@ export default function Ai() {
   const [apiKeyExists, setApiKeyExists] = useState(undefined);
   const [repoData, setRepoData] = useState(null);
   const [chat, setChat] = useState([
-    { sender: "ai", text: "Paste your GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
+    { sender: "ai", text: "Paste a public GitHub repo URL above to index its architecture and start chatting.", avatar: "/logo.png" }
   ]);
   const [msg, setMsg] = useState("");
   const [loadingRepo, setLoadingRepo] = useState(false);
@@ -117,132 +111,102 @@ export default function Ai() {
 
   const chatRef = useRef();
 
-  // New: ingest progress UI state
+  // Ingest progress UI state
+  const [showIngestOverlay, setShowIngestOverlay] = useState(false);
+  const [ingestProgress, setIngestProgress] = useState(0);
   const initialCheckpoints = useMemo(
-    () => ([
-      { key: "kickoff",    label: "Starting ingestion", done: false },
-      { key: "streaming",  label: "Streaming repo files", done: false },
-      { key: "chunking",   label: "Chunking content", done: false },
-      { key: "upserting",  label: "Upserting vectors", done: false },
-      { key: "analytics",  label: "Building repo analytics", done: false },
-      { key: "ready",      label: "Ready to chat", done: false },
-    ]),
+    () => [
+      { key: "kickoff", label: "Request dispatched", done: false },
+      { key: "streaming", label: "Downloading archive files", done: false },
+      { key: "chunking", label: "Token-aware chunking", done: false },
+      { key: "upserting", label: "Batched vector embeddings", done: false },
+      { key: "analytics", label: "AST graph & metrics", done: false },
+      { key: "ready", label: "Neural memory ready", done: false }
+    ],
     []
   );
-  const [ingestProgress, setIngestProgress] = useState(0);
   const [checkpoints, setCheckpoints] = useState(initialCheckpoints);
-  const [showIngestOverlay, setShowIngestOverlay] = useState(false);
   const progressTimerRef = useRef(null);
   const pollTimerRef = useRef(null);
 
   useEffect(() => {
-    async function checkActiveRepo() {
+    async function checkKey() {
       if (!user?.id) {
-        setSubmitted(false);
-        setRepoUrl("");
-        setRepoData(null);
-        setChat([
-          { sender: "ai", text: "Paste your GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
-        ]);
+        setApiKeyExists(false);
         return;
       }
-      setGlobalLoading({ show: true, messages: loadingMessages.restore, subtext: "" });
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/ai/get_api_key`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ user_id: user.id, provider }),
+        });
+        const data = await res.json();
+        setApiKeyExists(res.ok && data.exists);
+      } catch {
+        setApiKeyExists(false);
+      }
+    }
+    checkKey();
+  }, [user, provider]);
+
+  useEffect(() => {
+    async function restoreActiveRepo() {
+      if (!user?.id) return;
       try {
         const res = await fetch(`${BACKEND_URL}/api/repo/get_active_repo`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ user_id: user.id }),
         });
+        if (!res.ok) return;
         const data = await res.json();
-        if (data?.repo_url) {
+        if (data.repo_url) {
           setRepoUrl(data.repo_url);
           setSubmitted(true);
-          fetchRepoMeta(data.repo_url);
+          await fetchRepoMeta(data.repo_url);
           await fetchUserChatHistory(user.id);
-        } else {
-          setRepoUrl("");
-          setRepoData(null);
-          setSubmitted(false);
-          setChat([
-            { sender: "ai", text: "Paste your GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
-          ]);
         }
-      } catch {
-        setRepoUrl("");
-        setRepoData(null);
-        setSubmitted(false);
-        setChat([
-          { sender: "ai", text: "Paste your GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
-        ]);
-      }
-      setGlobalLoading({ show: false, messages: [], subtext: "" });
+      } catch {}
     }
-    checkActiveRepo();
-  }, [user?.id]);
+    restoreActiveRepo();
+  }, [user]);
 
   async function fetchUserChatHistory(userId) {
-    setGlobalLoading({ show: true, messages: loadingMessages.chatHistory, subtext: "" });
     try {
       const res = await fetch(`${BACKEND_URL}/api/ai/get_chat_history`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId }),
       });
-      const data = await res.json();
-      if (res.ok && Array.isArray(data.messages) && data.messages.length > 0) {
-        const formatted = data.messages.map((msg) => ({
-          sender: msg.role === "assistant" ? "ai" : "user",
-          text: msg.content,
-          id: msg.id,
-          avatar: msg.role === "assistant"
-            ? "/logo.png"
-            : (user?.avatar_url || user?.picture || "/logo.png"),
-        }));
-        setChat(formatted);
-      } else {
-        setChat([
-          { sender: "ai", text: "Repo loaded! Now ask me anything about your codebase.", avatar: "/logo.png" }
-        ]);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          setChat(
+            data.messages.map((m) => ({
+              id: m.id,
+              sender: m.role === "user" ? "user" : "ai",
+              text: m.content,
+              avatar: m.role === "user" ? (user?.avatar_url || user?.picture || "/logo.png") : "/logo.png"
+            }))
+          );
+        } else {
+          setChat([
+            { sender: "ai", text: "Repository indexed. Ask any questions about its structure, logic, or dependencies.", avatar: "/logo.png" }
+          ]);
+        }
       }
-    } catch {
-      setChat([
-        { sender: "ai", text: "Repo loaded! Now ask me anything about your codebase.", avatar: "/logo.png" }
-      ]);
-    }
-    setGlobalLoading({ show: false, messages: [], subtext: "" });
-  }
-
-  async function handleDeleteMessage(msgId) {
-    setGlobalLoading({ show: true, messages: loadingMessages.deleteMessage, subtext: "" });
-    try {
-      await fetch(`${BACKEND_URL}/api/ai/delete_message?msg_id=${msgId}&user_id=${user.id}`, {
-        method: "DELETE",
-      });
-      await fetchUserChatHistory(user.id);
     } catch {}
-    setGlobalLoading({ show: false, messages: [], subtext: "" });
   }
 
-  useEffect(() => {
-    // Gemini is configured on the backend server via .env by default
-    setApiKeyExists(true);
-  }, [user?.id, provider, globalLoading]);
-
-
-  useEffect(() => {
-    if (chatRef.current) {
-      chatRef.current.scrollTop = chatRef.current.scrollHeight;
-    }
-  }, [chat, loadingChat]);
-
-  async function fetchRepoMeta(repo_url) {
+  async function fetchRepoMeta(url) {
+    if (!user?.id) return;
     try {
       const res = await fetch(`${BACKEND_URL}/api/repo/metadata`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: user.id }),
+        body: JSON.stringify({ user_id: user.id, repo_url: url }),
       });
-
       if (!res.ok) {
         setRepoData(null);
         return;
@@ -254,18 +218,18 @@ export default function Ai() {
       setRepoData({
         name: analytics.repo_name,
         owner: analytics.owner,
-        avatar_url: analytics.contributors[0]?.avatar_url || "/logo.png",
+        avatar_url: analytics.contributors?.[0]?.avatar_url || "/logo.png",
         stars: analytics.stars,
         forks: analytics.forks,
         description: analytics.description,
         html_url: `https://github.com/${analytics.owner}/${analytics.repo_name}`,
         homepage: analytics.homepage,
-        main_language: analytics.language,
+        main_language: analytics.languages ? Object.keys(analytics.languages)[0] : "Code",
         license: analytics.license,
-        topics: analytics.topics,
+        topics: analytics.topics || [],
         profile: {
           name: analytics.owner,
-          avatar_url: analytics.contributors[0]?.avatar_url || "/logo.png",
+          avatar_url: analytics.contributors?.[0]?.avatar_url || "/logo.png",
           github: `https://github.com/${analytics.owner}`,
         },
       });
@@ -276,16 +240,15 @@ export default function Ai() {
 
   function startProgressUI() {
     setShowIngestOverlay(true);
-    setIngestProgress(5);
+    setIngestProgress(10);
     setCheckpoints((prev) => prev.map(c => c.key === "kickoff" ? { ...c, done: true } : c));
     if (progressTimerRef.current) clearInterval(progressTimerRef.current);
     progressTimerRef.current = setInterval(() => {
-      setIngestProgress((p) => (p < 90 ? p + 1 : p));
-    }, 400);
-    // staged checkpoints to give user visible milestones
-    setTimeout(() => setCheckpoints((prev) => prev.map(c => c.key === "streaming" ? { ...c, done: true } : c)), 1200);
-    setTimeout(() => setCheckpoints((prev) => prev.map(c => c.key === "chunking" ? { ...c, done: true } : c)), 3200);
-    setTimeout(() => setCheckpoints((prev) => prev.map(c => c.key === "upserting" ? { ...c, done: true } : c)), 5200);
+      setIngestProgress((p) => (p < 92 ? p + 2 : p));
+    }, 300);
+    setTimeout(() => setCheckpoints((prev) => prev.map(c => c.key === "streaming" ? { ...c, done: true } : c)), 800);
+    setTimeout(() => setCheckpoints((prev) => prev.map(c => c.key === "chunking" ? { ...c, done: true } : c)), 2200);
+    setTimeout(() => setCheckpoints((prev) => prev.map(c => c.key === "upserting" ? { ...c, done: true } : c)), 3800);
   }
 
   function stopProgressUI(finalizeReady = false) {
@@ -298,22 +261,19 @@ export default function Ai() {
           c.key === "analytics" || c.key === "ready" ? { ...c, done: true } : c
         )
       );
-      setTimeout(() => setShowIngestOverlay(false), 600);
+      setTimeout(() => setShowIngestOverlay(false), 500);
     } else {
       setShowIngestOverlay(false);
     }
   }
 
   async function handleRepoSubmit(e) {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!repoUrl.trim()) {
-      alert("Please enter a repo URL.");
+      alert("Please enter a GitHub repository URL.");
       return;
     }
     setLoadingRepo(true);
-    setGlobalLoading({ show: true, messages: loadingMessages.ingest, subtext: "Please do not close your browser. It's magic time." });
-
-    // reset progress UI
     setCheckpoints(initialCheckpoints);
     startProgressUI();
 
@@ -332,7 +292,7 @@ export default function Ai() {
         throw new Error(errData.detail || "Ingestion failed.");
       }
 
-      // Begin polling for metadata readiness (built async on server)
+      // Poll metadata
       if (pollTimerRef.current) clearInterval(pollTimerRef.current);
       pollTimerRef.current = setInterval(async () => {
         try {
@@ -350,37 +310,29 @@ export default function Ai() {
               setSubmitted(true);
               setCheckpoints((prev) => prev.map(c => c.key === "ready" ? { ...c, done: true } : c));
               stopProgressUI(true);
-              setGlobalLoading({ show: false, messages: [], subtext: "" });
             }
           }
         } catch {}
-      }, 1500);
+      }, 1000);
     } catch (err) {
-      alert("Error loading repo: " + err.message);
+      alert("Error ingesting repository: " + err.message);
       setSubmitted(false);
       stopProgressUI(false);
     } finally {
       setLoadingRepo(false);
-      setGlobalLoading({ show: false, messages: [], subtext: "" });
     }
   }
 
   async function handleSend(e) {
-    e.preventDefault();
-    if (!msg.trim() || !user || !repoData) {
-      alert("Please enter a message and make sure a repository is active.");
-      return;
-    }
+    if (e && e.preventDefault) e.preventDefault();
+    if (!msg.trim() || !user || !repoData) return;
 
     const newChat = [
       ...chat,
-      {
-        sender: "user",
-        text: msg,
-        avatar: user?.avatar_url || user?.picture || "/logo.png",
-      },
+      { sender: "user", text: msg, avatar: user.avatar_url || user.picture || "/logo.png" }
     ];
     setChat(newChat);
+    const sentMsg = msg;
     setMsg("");
     setLoadingChat(true);
 
@@ -390,32 +342,27 @@ export default function Ai() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: user.id,
-          message: msg,
+          message: sentMsg,
           provider: provider,
         }),
       });
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.detail || "Chat request failed.");
-      }
       const data = await res.json();
-      const updatedChat = [
-        ...newChat,
-        {
-          sender: "ai",
-          text: data.result || "(No answer)",
-          avatar: "/logo.png",
-        },
-      ];
-      setChat(updatedChat);
-    } catch (err) {
-      setChat((c) => [
-        ...c,
-        {
-          sender: "ai",
-          text: "Error: " + err.message,
-          avatar: "/logo.png",
-        },
+      if (res.ok) {
+        setChat((prev) => [
+          ...prev,
+          { sender: "ai", text: data.result, avatar: "/logo.png" }
+        ]);
+        await fetchUserChatHistory(user.id);
+      } else {
+        setChat((prev) => [
+          ...prev,
+          { sender: "ai", text: "Error: " + (data.detail || "Could not get AI answer."), avatar: "/logo.png" }
+        ]);
+      }
+    } catch {
+      setChat((prev) => [
+        ...prev,
+        { sender: "ai", text: "Network error while calling neural reasoning engine.", avatar: "/logo.png" }
       ]);
     } finally {
       setLoadingChat(false);
@@ -423,27 +370,30 @@ export default function Ai() {
   }
 
   async function handleNewRepo() {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-    if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    setGlobalLoading({ show: true, messages: loadingMessages.switchRepo, subtext: "" });
+    if (!user?.id) return;
     try {
-      if (user?.id) {
-        await fetch(`${BACKEND_URL}/api/repo/switch_repo`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ user_id: user.id }),
-        });
-      }
-    } catch (e) {
-      console.error("Failed to switch repo:", e);
-    }
-    setRepoUrl("");
-    setRepoData(null);
+      await fetch(`${BACKEND_URL}/api/repo/switch_repo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: user.id }),
+      });
+    } catch {}
     setSubmitted(false);
-    setChat([
-      { sender: "ai", text: "Paste any GitHub repo URL to start chatting about your code.", avatar: "/logo.png" }
-    ]);
-    setGlobalLoading({ show: false, messages: [], subtext: "" });
+    setRepoData(null);
+    setRepoUrl("");
+    setChat([{ sender: "ai", text: "Repository cleared. Enter a new GitHub URL to analyze.", avatar: "/logo.png" }]);
+  }
+
+  async function handleDeleteMessage(msgId) {
+    if (!user?.id || !msgId) return;
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/ai/delete_message?msg_id=${encodeURIComponent(msgId)}&user_id=${encodeURIComponent(user.id)}`, {
+        method: "DELETE"
+      });
+      if (res.ok) {
+        setChat((prev) => prev.filter((m) => m.id !== msgId));
+      }
+    } catch {}
   }
 
   useEffect(() => {
@@ -453,148 +403,117 @@ export default function Ai() {
     };
   }, []);
 
-  const logoutWithClear = async () => logout();
-
   return (
-    <div className="flex min-h-screen bg-[#161b22] flex-col relative overflow-hidden">
+    <div className="relative min-h-screen bg-ambient text-[#AEB4BD] flex flex-col overflow-hidden">
       {globalLoading.show && (
-        <LoadingScreen
-          messages={globalLoading.messages}
-          subtext={globalLoading.subtext}
-        />
+        <LoadingScreen messages={globalLoading.messages} subtext={globalLoading.subtext} />
       )}
 
-      {/* Ingest progress overlay with checkpoints */}
+      {/* Ingest Progress Modal */}
       <IngestProgress
         visible={showIngestOverlay}
         progress={ingestProgress}
         checkpoints={checkpoints}
-        onCancel={() => {
-          stopProgressUI(false);
-        }}
+        onCancel={() => stopProgressUI(false)}
       />
 
-      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onLogout={logoutWithClear} />
-      <div className="flex items-center justify-between px-6 py-4 bg-[#161b22] border-b border-[#21262d] w-full z-20 h-16">
-        <div className="flex items-center gap-3">
-          <img src="/logo.png" className="h-8 w-8 rounded-full" alt="CodeSense AI" />
-          <span className="font-bold text-[#2ea043] ml-1 text-xl">AI Chat</span>
-          <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-950/70 text-emerald-400 border border-emerald-500/30">
-            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-            Default: Google Gemini
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          {submitted && (
-            <button
-              onClick={handleNewRepo}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#20252b] hover:bg-[#238636] text-gray-200 hover:text-white border border-[#30363d] text-xs font-semibold transition shadow-sm cursor-pointer"
-              title="Load or switch to a different GitHub repository"
-            >
-              <FolderGit2 className="w-4 h-4 text-[#2ea043]" />
-              <span>Switch Repo</span>
-            </button>
-          )}
-          {!sidebarOpen && (
-            <button
-              className="z-30 p-0 outline-none border-none bg-transparent cursor-pointer"
-              style={{ boxShadow: "none" }}
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open sidebar"
-              title="Settings & Model Provider"
-            >
-              <img
-                src={user?.avatar_url || user?.picture || "/logo.png"}
-                className="h-9 w-9 rounded-full border border-[#2ea043] bg-[#161b22]"
-                alt="Profile"
-              />
-            </button>
-          )}
-        </div>
-      </div>
-      <div className="relative flex-1 flex flex-col w-full min-h-0">
-        <main className="flex flex-col flex-1 w-full overflow-hidden transition-all duration-300">
-          {!submitted && (
-            <div className="flex flex-col items-center justify-center flex-1 px-4">
-              <form
-                className="w-full max-w-2xl mx-auto flex flex-col gap-4 bg-[#20252b] border border-[#232b36] rounded-lg px-4 py-6 shadow-sm"
-                onSubmit={handleRepoSubmit}
-                autoComplete="off"
-              >
-                <label className="flex flex-col gap-1">
-                  <span className="text-sm text-gray-300 font-semibold">GitHub Repo URL</span>
-                  <div className="flex gap-2">
-                    <input
-                      className="flex-1 bg-transparent border border-[#232b36] rounded-lg px-4 py-2 text-base text-gray-200 placeholder-gray-500 outline-none focus:border-[#2ea043] focus:ring-1 focus:ring-[#2ea043] transition"
-                      placeholder="https://github.com/owner/repo"
-                      value={repoUrl}
-                      onChange={e => setRepoUrl(e.target.value)}
-                      spellCheck={false}
-                      required
-                      disabled={loadingRepo}
-                    />
-                    <button
-                      type="submit"
-                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[#2ea043] hover:bg-[#238636] text-white font-semibold text-base shadow transition"
-                      disabled={loadingRepo}
-                    >
-                      {loadingRepo ? (
-                        <span className="animate-spin mr-1">⏳</span>
-                      ) : (
-                        <Github className="w-5 h-5" />
-                      )}
-                      {loadingRepo ? "Loading..." : "Submit"}
-                    </button>
-                  </div>
-                </label>
-                <div className="text-xs text-gray-400 mt-1 flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
-                  <span>Neural RAG reasoning active via <b>Google Gemini AI</b>.</span>
-                </div>
-              </form>
-              <div className="w-full max-w-2xl mx-auto mt-6 bg-[#21262d] border border-emerald-500/20 rounded-xl p-5 shadow-sm">
-                <h2 className="text-base font-bold text-emerald-400 mb-2 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-emerald-400" />
-                  Instant Codebase RAG with Google Gemini
+      <Navbar onOpenSidebar={() => setSidebarOpen(true)} />
+      <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onLogout={logout} />
+
+      <main className="flex-1 flex flex-col p-4 md:p-8 max-w-[1440px] mx-auto w-full">
+        {!submitted ? (
+          /* Unindexed State — Minimal Ingest Terminal */
+          <div className="flex-1 flex flex-col items-center justify-center py-12">
+            <div className="w-full max-w-2xl rounded-2xl border border-hairline-strong bg-[#0E1013] p-8 md:p-12 shadow-2xl relative overflow-hidden">
+              <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#E9EBEF]/40 to-transparent" />
+
+              <div className="text-center">
+                <span className="label-mono text-xs text-[#6E747D]">repository ingest gateway</span>
+                <h2 className="mt-2 text-2xl md:text-3xl font-bold tracking-[-0.02em] text-[#F4F5F7]">
+                  Analyze Any GitHub Repository with <span className="chrome-text">AI</span>
                 </h2>
-                <p className="text-xs text-gray-300 leading-relaxed mb-3">
-                  Enter any public GitHub repository URL above. CodeSense AI indexes the repository and provides sub-second answers using Google Gemini LLM.
+                <p className="mt-3 text-xs md:text-sm text-[#AEB4BD] leading-relaxed max-w-lg mx-auto">
+                  Instant token-aware chunking, 768-dim FAISS vector search, and sub-3s reasoning via Google Gemini 2.5 Flash and local Qwen-Coder.
                 </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2 border-t border-gray-800 text-xs text-gray-300">
-                  <div className="bg-[#161b22] p-2.5 rounded-lg border border-gray-800">
-                    <span className="font-semibold text-emerald-400 block mb-1">⚡ Fast Reasoning</span>
-                    Answers in 1-2s without CPU timeouts.
-                  </div>
-                  <div className="bg-[#161b22] p-2.5 rounded-lg border border-gray-800">
-                    <span className="font-semibold text-emerald-400 block mb-1">📁 Smart Indexing</span>
-                    Code AST and README prioritized for high accuracy.
-                  </div>
-                  <div className="bg-[#161b22] p-2.5 rounded-lg border border-gray-800">
-                    <span className="font-semibold text-emerald-400 block mb-1">🔒 Ready Out-of-the-Box</span>
-                    Configured via server .env without manual setup.
-                  </div>
+              </div>
+
+              {/* Form Bar */}
+              <form onSubmit={handleRepoSubmit} className="mt-8 flex flex-col sm:flex-row gap-2">
+                <div className="relative flex-1">
+                  <input
+                    type="url"
+                    placeholder="https://github.com/owner/repository"
+                    value={repoUrl}
+                    onChange={(e) => setRepoUrl(e.target.value)}
+                    required
+                    disabled={loadingRepo}
+                    className="w-full rounded-xl border border-hairline bg-[#131518] px-4 py-3 text-xs md:text-sm text-[#F4F5F7] placeholder-[#6E747D] outline-none transition-all focus:border-[#6E747D] focus:ring-1 focus:ring-[#6E747D]"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loadingRepo || !repoUrl.trim()}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F4F5F7] px-6 py-3 text-xs font-mono font-semibold uppercase text-[#0B0C0E] transition-all hover:bg-white hover:shadow-lg disabled:opacity-40"
+                >
+                  <span>{loadingRepo ? "Vectorizing..." : "Index Repo"}</span>
+                  <ArrowRight size={14} />
+                </button>
+              </form>
+
+              {/* Example Shortcuts */}
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] font-mono text-[#6E747D]">
+                <span>Sample repositories:</span>
+                <button
+                  type="button"
+                  onClick={() => setRepoUrl("https://github.com/Manthan-Gohil/PixelLearn-Coding-Platform")}
+                  className="rounded border border-hairline bg-[#131518] px-2 py-0.5 text-[#AEB4BD] hover:border-[#6E747D] hover:text-[#F4F5F7] transition-all"
+                >
+                  PixelLearn-Coding-Platform
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRepoUrl("https://github.com/expressjs/express")}
+                  className="rounded border border-hairline bg-[#131518] px-2 py-0.5 text-[#AEB4BD] hover:border-[#6E747D] hover:text-[#F4F5F7] transition-all"
+                >
+                  expressjs/express
+                </button>
+              </div>
+
+              {/* Feature telemetry */}
+              <div className="mt-8 grid grid-cols-3 gap-3 border-t border-hairline pt-6 text-center">
+                <div className="rounded-xl border border-hairline bg-[#131518]/40 p-3">
+                  <div className="label-mono text-[9px] text-[#6E747D]">Batch Embedding</div>
+                  <div className="mt-1 text-xs font-semibold text-[#F4F5F7]">32 chunks / sec</div>
+                </div>
+                <div className="rounded-xl border border-hairline bg-[#131518]/40 p-3">
+                  <div className="label-mono text-[9px] text-[#6E747D]">Vector Storage</div>
+                  <div className="mt-1 text-xs font-semibold text-[#F4F5F7]">Persistent FAISS</div>
+                </div>
+                <div className="rounded-xl border border-hairline bg-[#131518]/40 p-3">
+                  <div className="label-mono text-[9px] text-[#6E747D]">Quota Shield</div>
+                  <div className="mt-1 text-xs font-semibold text-[#F4F5F7]">Auto Fallback</div>
                 </div>
               </div>
             </div>
-          )}
-
-          {submitted && repoData && (
-            <div className="w-full max-w-[99vw] mx-auto flex flex-1 min-h-0 flex-col md:flex-row gap-4 p-4">
-              <RepoPanel repoData={repoData} handleNewRepo={handleNewRepo} />
-              <ChatPanel
-                chat={chat}
-                msg={msg}
-                setMsg={setMsg}
-                loadingChat={loadingChat}
-                onSend={handleSend}
-                canChat={apiKeyExists}
-                chatRef={chatRef}
-                onDeleteMessage={handleDeleteMessage}
-              />
-            </div>
-          )}
-        </main>
-      </div>
+          </div>
+        ) : (
+          /* Indexed State — Split Panel View */
+          <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+            {repoData && <RepoPanel repoData={repoData} handleNewRepo={handleNewRepo} />}
+            <ChatPanel
+              chat={chat}
+              msg={msg}
+              setMsg={setMsg}
+              loadingChat={loadingChat}
+              onSend={handleSend}
+              canChat={true}
+              chatRef={chatRef}
+              onDeleteMessage={handleDeleteMessage}
+            />
+          </div>
+        )}
+      </main>
     </div>
   );
 }

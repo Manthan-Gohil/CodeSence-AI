@@ -6,9 +6,8 @@ import py from "react-syntax-highlighter/dist/esm/languages/hljs/python";
 import cpp from "react-syntax-highlighter/dist/esm/languages/hljs/cpp";
 import java from "react-syntax-highlighter/dist/esm/languages/hljs/java";
 import atomOneDark from "react-syntax-highlighter/dist/esm/styles/hljs/atom-one-dark";
-import { Trash2 } from "lucide-react";
+import { Trash2, Bot, User } from "lucide-react";
 
-// Register languages (only once!)
 SyntaxHighlighter.registerLanguage("javascript", js);
 SyntaxHighlighter.registerLanguage("python", py);
 SyntaxHighlighter.registerLanguage("cpp", cpp);
@@ -19,50 +18,57 @@ function detectLanguage(code = "") {
   if (/^\s*import\s+\w+|def\s+\w+/.test(code) || /print\(.+\)/.test(code)) return "python";
   if (/^\s*public\s+class|System\.out\.println/.test(code)) return "java";
   if (/function\s*\(|const\s+\w+\s*=/.test(code) || /console\.log/.test(code)) return "javascript";
-  return "text"; // fallback
+  return "text";
 }
 
 export default function ChatBubble({ sender, text, avatar, onDelete, canDelete, id }) {
   const isUser = sender === "user";
+
   return (
-    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-4 group`}>
+    <div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-6 group`}>
+      {/* AI Avatar */}
       {!isUser && (
-        <img src={avatar || "/logo.png"} className="h-8 w-8 rounded-full mr-2 mt-1 shadow flex-shrink-0" alt="ai" />
+        <div className="h-8 w-8 rounded-full border border-hairline bg-[#131518] flex items-center justify-center mr-3 mt-1 flex-shrink-0">
+          <Bot size={16} className="text-[#E9EBEF]" />
+        </div>
       )}
+
       <div
         className={`
-          relative px-4 py-3 rounded-2xl max-w-[70vw] min-w-[90px]
+          relative px-5 py-4 rounded-2xl max-w-[85vw] sm:max-w-[75%]
           ${isUser
-            ? "bg-[#2ea043] text-white rounded-br-md"
-            : "bg-[#232b36] text-gray-200 border border-[#21262d] rounded-bl-md"}
+            ? "bg-[#181B22] text-[#F4F5F7] border border-hairline-strong rounded-tr-sm"
+            : "bg-[#111317] text-[#D1D5DB] border border-hairline rounded-tl-sm shadow-xl"}
         `}
-        style={{
-          wordBreak: "break-word",
-          width: "fit-content",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
-        }}
+        style={{ wordBreak: "break-word" }}
       >
+        {/* Delete action button */}
         {canDelete && (
           <button
-            className={`absolute top-1 ${isUser ? "right-1" : "left-1"} opacity-0 group-hover:opacity-80 transition-opacity rounded-full p-1 bg-black/40 hover:bg-red-600 text-white`}
-            title="Delete"
-            style={{ zIndex: 5 }}
+            className={`absolute top-2 ${isUser ? "right-2" : "right-2"} opacity-0 group-hover:opacity-80 transition-opacity rounded-md p-1.5 bg-[#0B0C0E]/80 hover:bg-red-500/20 text-[#6E747D] hover:text-red-400`}
+            title="Delete message"
             onClick={() => onDelete(id)}
           >
-            <Trash2 size={16} />
+            <Trash2 size={13} />
           </button>
         )}
+
+        {/* Sender Label */}
+        <div className="mb-1.5 flex items-center gap-2 text-[10px] font-mono text-[#6E747D]">
+          <span>{isUser ? "DEVELOPER" : "CODESENSE NEURAL RAG"}</span>
+        </div>
+
         <ReactMarkdown
           components={{
-            strong: ({ node, ...props }) => <b className="font-semibold text-[#ffd700]" {...props} />,
-            ul: ({ node, ...props }) => <ul className="list-disc ml-6 mb-3 mt-2" {...props} />,
-            ol: ({ node, ...props }) => <ol className="list-decimal ml-6 mb-3 mt-2" {...props} />,
-            li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-            h1: ({ node, ...props }) => <h1 className="text-xl font-bold mb-3 mt-4" {...props} />,
-            h2: ({ node, ...props }) => <h2 className="text-lg font-bold mb-2 mt-3" {...props} />,
-            h3: ({ node, ...props }) => <h3 className="text-base font-bold mb-2 mt-3" {...props} />,
+            strong: ({ node, ...props }) => <b className="font-semibold text-[#F4F5F7]" {...props} />,
+            ul: ({ node, ...props }) => <ul className="list-disc ml-5 mb-3 mt-1.5 space-y-1" {...props} />,
+            ol: ({ node, ...props }) => <ol className="list-decimal ml-5 mb-3 mt-1.5 space-y-1" {...props} />,
+            li: ({ node, ...props }) => <li className="leading-relaxed" {...props} />,
+            h1: ({ node, ...props }) => <h1 className="text-lg font-bold mb-2 mt-4 text-[#F4F5F7]" {...props} />,
+            h2: ({ node, ...props }) => <h2 className="text-base font-semibold mb-2 mt-3 text-[#F4F5F7]" {...props} />,
+            h3: ({ node, ...props }) => <h3 className="text-sm font-semibold mb-1.5 mt-2 text-[#F4F5F7]" {...props} />,
             blockquote: ({ node, ...props }) => (
-              <blockquote className="border-l-4 border-[#2ea043] pl-4 italic mb-3 mt-2" {...props} />
+              <blockquote className="border-l-2 border-[#E9EBEF]/40 pl-3.5 italic my-3 text-[#AEB4BD]" {...props} />
             ),
             code({ node, inline, className, children, ...props }) {
               const code = String(children).replace(/\n$/, "");
@@ -70,30 +76,33 @@ export default function ChatBubble({ sender, text, avatar, onDelete, canDelete, 
               
               if (inline) {
                 return (
-                  <code className="bg-[#1a2027] px-2 py-1 rounded text-[#61dafb] font-mono text-sm border border-[#2d3748]" {...props}>
+                  <code className="bg-[#1A1D24] px-1.5 py-0.5 rounded text-[12px] font-mono text-[#E9EBEF] border border-hairline" {...props}>
                     {children}
                   </code>
                 );
               }
               
               return (
-                <div className="my-4">
+                <div className="my-3 overflow-hidden rounded-xl border border-hairline">
+                  <div className="flex items-center justify-between bg-[#161920] px-3.5 py-1.5 text-[10px] font-mono text-[#6E747D] border-b border-hairline">
+                    <span className="uppercase">{lang}</span>
+                    <span>Syntax Highlighting</span>
+                  </div>
                   <SyntaxHighlighter
                     style={atomOneDark}
                     language={lang}
                     customStyle={{
-                      background: "#1e2029",
-                      borderRadius: "0.5rem",
+                      background: "#0E1014",
                       padding: "1rem",
-                      fontSize: "0.9em",
-                      border: "1px solid #2d3748",
-                      margin: "0"
+                      fontSize: "12px",
+                      margin: 0,
+                      lineHeight: "1.5"
                     }}
                     PreTag="div"
                     showLineNumbers={true}
                     lineNumberStyle={{
-                      color: "#6b7280",
-                      fontSize: "0.8em",
+                      color: "#4B515D",
+                      fontSize: "11px",
                       paddingRight: "1em"
                     }}
                   >
@@ -102,35 +111,41 @@ export default function ChatBubble({ sender, text, avatar, onDelete, canDelete, 
                 </div>
               );
             },
-            pre: ({ node, ...props }) => <div {...props} className="my-4" />,
-            p: ({ node, ...props }) => <p className="mb-3 last:mb-0 leading-relaxed" {...props} />,
+            pre: ({ node, ...props }) => <div {...props} className="my-2" />,
+            p: ({ node, ...props }) => <p className="mb-2.5 last:mb-0 leading-relaxed text-[13.5px]" {...props} />,
             a: ({ node, ...props }) => (
               <a 
-                className="text-[#2ea043] underline hover:text-[#238636] transition-colors break-all" 
+                className="text-[#E9EBEF] underline underline-offset-4 decoration-hairline-strong hover:text-white transition-colors" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 {...props} 
               />
             ),
-            hr: ({ node, ...props }) => <hr className="border-[#21262d] my-4" {...props} />,
+            hr: ({ node, ...props }) => <hr className="border-hairline my-3" {...props} />,
             table: ({ node, ...props }) => (
-              <div className="overflow-x-auto my-4">
-                <table className="min-w-full border-collapse border border-[#21262d]" {...props} />
+              <div className="overflow-x-auto my-3">
+                <table className="min-w-full border-collapse border border-hairline text-xs" {...props} />
               </div>
             ),
             th: ({ node, ...props }) => (
-              <th className="border border-[#21262d] px-3 py-2 bg-[#1a1e23] font-semibold text-left" {...props} />
+              <th className="border border-hairline px-3 py-2 bg-[#161920] font-semibold text-left text-[#F4F5F7]" {...props} />
             ),
             td: ({ node, ...props }) => (
-              <td className="border border-[#21262d] px-3 py-2" {...props} />
+              <td className="border border-hairline px-3 py-2 text-[#AEB4BD]" {...props} />
             ),
           }}
         >
           {text}
         </ReactMarkdown>
       </div>
+
+      {/* User Avatar */}
       {isUser && (
-        <img src={avatar || "/logo.png"} className="h-8 w-8 rounded-full ml-2 mt-1 shadow flex-shrink-0" alt="user" />
+        <img
+          src={avatar || "/logo.png"}
+          className="h-8 w-8 rounded-full border border-hairline ml-3 mt-1 flex-shrink-0 object-cover"
+          alt="user"
+        />
       )}
     </div>
   );

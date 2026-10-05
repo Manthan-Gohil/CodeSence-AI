@@ -1,68 +1,99 @@
 import React from "react";
-import { Github, Star, GitFork, Globe2, BadgeCheck, BookOpen } from "lucide-react";
+import { Github, Star, GitFork, Globe2, BadgeCheck, BookOpen, XCircle, ArrowUpRight } from "lucide-react";
 
 export default function RepoPanel({ repoData, handleNewRepo }) {
   if (!repoData) return null;
+
   return (
-    <div className="md:w-[25%] w-full bg-[#20252b] border border-[#232b36] rounded shadow-sm p-4 flex flex-col">
-      <img src={repoData.avatar_url} alt="repo owner" className="w-14 h-14 rounded-full border-2 border-[#238636] shadow-sm mb-3 self-center" />
-      <div className="flex-1">
-        <div className="flex flex-wrap items-center gap-2 mb-1">
-          <a href={repoData.html_url} target="_blank" rel="noopener noreferrer" className="text-lg font-bold text-[#2ea043] hover:underline flex items-center gap-1 truncate">
-            <Github className="w-5 h-5" /> {repoData.name}
-          </a>
-          <span className="bg-[#2ea043]/20 text-[#2ea043] text-xs px-2 py-0.5 rounded">{repoData.owner}</span>
+    <div className="w-full md:w-80 flex flex-col justify-between rounded-2xl border border-hairline bg-[#0E1013] p-5 shadow-2xl overflow-hidden">
+      <div>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-hairline pb-4 text-xs font-mono text-[#6E747D]">
+          <span className="label-mono text-[#AEB4BD]">Active Repository</span>
+          <span className="flex items-center gap-1.5 text-[#2EA043]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#2EA043] animate-pulse" />
+            Synchronized
+          </span>
         </div>
-        {repoData.homepage && (
-          <a
-            href={repoData.homepage}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-xs text-[#2ea043] hover:underline mb-1"
-          >
-            <Globe2 className="inline w-3 h-3 mr-1 -mt-0.5" />
-            {repoData.homepage}
-          </a>
+
+        {/* Owner & Repo Title */}
+        <div className="mt-4 flex items-start gap-3">
+          {repoData.avatar_url && (
+            <img
+              src={repoData.avatar_url}
+              alt={repoData.owner || "Owner"}
+              className="h-10 w-10 rounded-full border border-hairline object-cover flex-shrink-0"
+            />
+          )}
+          <div className="min-w-0 flex-1">
+            <a
+              href={repoData.html_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group flex items-center gap-1.5 text-base font-semibold text-[#F4F5F7] hover:text-white no-underline truncate"
+            >
+              <span className="truncate">{repoData.name}</span>
+              <ArrowUpRight size={13} className="text-[#6E747D] group-hover:text-[#F4F5F7] transition-transform" />
+            </a>
+            <div className="text-[11px] font-mono text-[#6E747D]">
+              by <span className="text-[#AEB4BD]">{repoData.owner}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Description */}
+        {repoData.description && (
+          <p className="mt-3 text-xs leading-relaxed text-[#AEB4BD] line-clamp-3">
+            {repoData.description}
+          </p>
         )}
-        <div className="flex gap-4 text-gray-400 text-xs mb-1">
-          <span className="flex items-center gap-1">
-            <Star className="w-4 h-4" /> {repoData.stars}
-          </span>
-          <span className="flex items-center gap-1">
-            <GitFork className="w-4 h-4" /> {repoData.forks}
-          </span>
+
+        {/* Stats Grid */}
+        <div className="mt-4 grid grid-cols-2 gap-2 border-y border-hairline py-3 text-xs font-mono text-[#AEB4BD]">
+          <div className="flex items-center gap-1.5">
+            <Star size={13} className="text-[#6E747D]" />
+            <span>{repoData.stars?.toLocaleString() || 0} stars</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <GitFork size={13} className="text-[#6E747D]" />
+            <span>{repoData.forks?.toLocaleString() || 0} forks</span>
+          </div>
           {repoData.main_language && (
-            <span className="flex items-center gap-1">
-              <BookOpen className="w-4 h-4" /> {repoData.main_language}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <BookOpen size={13} className="text-[#6E747D]" />
+              <span className="truncate">{repoData.main_language}</span>
+            </div>
           )}
           {repoData.license && (
-            <span className="flex items-center gap-1">
-              <BadgeCheck className="w-4 h-4" /> {repoData.license}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <BadgeCheck size={13} className="text-[#6E747D]" />
+              <span className="truncate">{repoData.license}</span>
+            </div>
           )}
         </div>
-        <div className="text-gray-300 text-sm mb-2 break-words">{repoData.description}</div>
+
+        {/* Topics */}
         {repoData.topics && repoData.topics.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
-            {repoData.topics.map((t) => (
-              <span key={t} className="bg-[#232b36] border border-[#2ea043]/40 text-xs text-[#2ea043] px-2 py-0.5 rounded-full">{t}</span>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {repoData.topics.slice(0, 6).map((t) => (
+              <span
+                key={t}
+                className="rounded border border-hairline bg-[#131518] px-2 py-0.5 text-[10px] font-mono text-[#AEB4BD]"
+              >
+                {t}
+              </span>
             ))}
           </div>
         )}
-        <div className="flex items-center gap-2 mt-1">
-          <img src={repoData.profile.avatar_url} className="w-6 h-6 rounded-full border border-[#232b36]" alt="profile" />
-          <a href={repoData.profile.github} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-[#2ea043] hover:underline truncate">
-            {repoData.profile.name}
-          </a>
-        </div>
       </div>
+
+      {/* Switch Repo Button */}
       <button
-        className="flex items-center gap-2 px-4 py-2 bg-[#232b36] border border-[#232b36] rounded shadow text-sm text-[#2ea043] hover:bg-[#2ea043] hover:text-white transition font-semibold mt-6"
         onClick={handleNewRepo}
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-hairline bg-[#131518] py-2.5 text-xs font-mono text-[#AEB4BD] transition-all hover:border-[#6E747D] hover:bg-[#1A1D24] hover:text-[#F4F5F7]"
       >
-        <Github className="w-4 h-4" />
-        Close This Repo
+        <XCircle size={14} className="text-[#6E747D]" />
+        <span>Switch Repository</span>
       </button>
     </div>
   );

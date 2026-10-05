@@ -1,1 +1,164 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --ink-0: #0B0C0E;
+    --ink-1: #131518;
+    --ink-2: #1A1D24;
+    --paper-0: #F4F5F7;
+    --paper-1: #AEB4BD;
+    --paper-2: #6E747D;
+    --chrome-lo: #4B515D;
+    --chrome-mid: #6E747D;
+    --chrome-hi: #E9EBEF;
+    --hairline: rgba(244, 245, 247, 0.08);
+    --hairline-strong: rgba(244, 245, 247, 0.16);
+    --emerald-accent: #2EA043;
+  }
+
+  * {
+    border-color: var(--hairline);
+  }
+
+  html.lenis, html.lenis body {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  .lenis.lenis-smooth iframe {
+    pointer-events: none;
+  }
+
+  body {
+    background-color: var(--ink-0);
+    color: var(--paper-1);
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    overflow-x: hidden;
+  }
+
+  code, pre, .font-mono, [data-mono] {
+    font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+}
+
+/* Ambient Jamie McKaye Grid & Glow */
+.bg-ambient {
+  background-color: #0B0C0E;
+  background-image: 
+    radial-gradient(70rem 28rem at 72% 82%, rgba(233, 235, 239, 0.06), transparent 62%),
+    radial-gradient(46rem 20rem at 24% 96%, rgba(174, 180, 189, 0.04), transparent 66%),
+    repeating-linear-gradient(90deg, rgba(244, 245, 247, 0.018) 0 1px, transparent 1px 96px),
+    repeating-linear-gradient(0deg, rgba(244, 245, 247, 0.015) 0 1px, transparent 1px 96px);
+}
+
+/* Metallic Chrome text gradient */
+.chrome-text {
+  background: linear-gradient(135deg, #7C828C 0%, #FFFFFF 48%, #7C828C 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.chrome-text-reverse {
+  background: linear-gradient(135deg, #FFFFFF 0%, #7C828C 50%, #FFFFFF 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Monospace label tag */
+.label-mono {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Precision hairline borders */
+.border-hairline {
+  border-color: rgba(244, 245, 247, 0.08);
+}
+
+.border-hairline-strong {
+  border-color: rgba(244, 245, 247, 0.16);
+}
+
+.border-hairline-focus {
+  border-color: rgba(244, 245, 247, 0.35);
+}
+
+/* Subtle Film Grain Texture Overlay */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0C0E;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(244, 245, 247, 0.12);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 245, 247, 0.25);
+}
+
+/* Metallic Underline Hover Animation */
+.chrome-hover-line {
+  position: relative;
+}
+
+.chrome-hover-line::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  height: 1px;
+  width: 0;
+  background: linear-gradient(90deg, #4B515D, #E9EBEF, #4B515D);
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.chrome-hover-line:hover::after {
+  width: 100%;
+}
+
+/* Trace line glowing pulse animation */
+@keyframes tracePulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.animate-trace-node {
+  animation: tracePulse 3s infinite ease-in-out;
+}
