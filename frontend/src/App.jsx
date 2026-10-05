@@ -10,9 +10,9 @@ import Feedback from "./pages/Feedback";
 function App() {
   return (
     <AuthProvider>
-      <SmoothScroll>
-        <div className="grain-overlay" aria-hidden="true" />
-        <BrowserRouter>
+      <BrowserRouter>
+        <SmoothScroll>
+          <div className="grain-overlay" aria-hidden="true" />
           <Routes>
             <Route path="/" element={<Login />} />
             <Route path="/home" element={<Home />} />
@@ -20,8 +20,8 @@ function App() {
             <Route path="/repo" element={<Repo />} />
             <Route path="/feedback" element={<Feedback />} />
           </Routes>
-        </BrowserRouter>
-      </SmoothScroll>
+        </SmoothScroll>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

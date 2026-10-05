@@ -5,7 +5,10 @@ export default function RepoPanel({ repoData, handleNewRepo }) {
   if (!repoData) return null;
 
   return (
-    <div className="w-full md:w-80 flex flex-col justify-between rounded-2xl border border-hairline bg-[#0E1013] p-5 shadow-2xl overflow-hidden">
+    <div 
+      data-lenis-prevent="true"
+      className="w-full md:w-80 flex flex-col justify-between rounded-2xl border border-hairline bg-[#0E1013] p-5 shadow-2xl flex-shrink-0 md:h-full overflow-y-auto [scrollbar-width:thin]"
+    >
       <div>
         {/* Header */}
         <div className="flex items-center justify-between border-b border-hairline pb-4 text-xs font-mono text-[#6E747D]">

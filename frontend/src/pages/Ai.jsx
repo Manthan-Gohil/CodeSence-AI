@@ -404,7 +404,7 @@ export default function Ai() {
   }, []);
 
   return (
-    <div className="relative min-h-screen bg-ambient text-[#AEB4BD] flex flex-col overflow-hidden">
+    <div className={`relative ${submitted ? "h-screen max-h-screen overflow-hidden" : "min-h-screen"} bg-ambient text-[#AEB4BD] flex flex-col`}>
       {globalLoading.show && (
         <LoadingScreen messages={globalLoading.messages} subtext={globalLoading.subtext} />
       )}
@@ -420,7 +420,7 @@ export default function Ai() {
       <Navbar onOpenSidebar={() => setSidebarOpen(true)} />
       <Sidebar open={sidebarOpen} setOpen={setSidebarOpen} onLogout={logout} />
 
-      <main className="flex-1 flex flex-col p-4 md:p-8 max-w-[1440px] mx-auto w-full">
+      <main className={`flex-1 flex flex-col p-3 md:p-6 max-w-[1440px] mx-auto w-full ${submitted ? "min-h-0 overflow-hidden" : ""}`}>
         {!submitted ? (
           /* Unindexed State — Minimal Ingest Terminal */
           <div className="flex-1 flex flex-col items-center justify-center py-12">
@@ -499,7 +499,7 @@ export default function Ai() {
           </div>
         ) : (
           /* Indexed State — Split Panel View */
-          <div className="flex-1 flex flex-col md:flex-row gap-6 min-h-0">
+          <div className="flex-1 flex flex-col md:flex-row gap-4 md:gap-6 min-h-0 h-full overflow-hidden">
             {repoData && <RepoPanel repoData={repoData} handleNewRepo={handleNewRepo} />}
             <ChatPanel
               chat={chat}
