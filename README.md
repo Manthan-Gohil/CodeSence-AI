@@ -89,39 +89,37 @@ Architected and implemented **CodeSense AI** as an enterprise-grade microservice
 
 ## 🎨 UI & Frontend Showcase
 
-The new frontend is designed with an editorial, dark-mode terminal aesthetic tailored for software engineers and architects:
+The modernized frontend features an editorial dark-mode aesthetic with custom typography, responsive grid controls, and live interactive visualizations:
 
 <div align="center">
 
 ### 1. Interactive 2D Architecture & Dependency Call Graph
-*Visual module clustering with tier filters (Routes, Services, Models, Utils) and caller/callee inspection drawer.*
+*Dynamic force-directed graph illustrating module clustering, tier filters (Routes, Services, Models, Utils, Config), and caller/callee inspection.*
 
-<img width="1440" alt="CodeSense AI Architecture Graph" src="https://github.com/user-attachments/assets/7b48f5f0-2e21-44c0-aa8f-2a39c9283d46" />
+<img width="1440" alt="CodeSense AI Interactive 2D Architecture Graph" src="frontend/public/screenshots/architecture_graph.png" />
 
 ---
 
 ### 2. Multi-Branch Code Viewer & Complete File Tree
-*Browse 100% of repository files, switch branches on the fly, and view code in the integrated Monaco editor.*
+*Browse 100% of repository files, switch branches in real-time, and view code in the syntax-highlighted Monaco editor.*
 
-<img width="1440" alt="CodeSense AI Code Viewer" src="https://github.com/user-attachments/assets/0bab392a-7d85-41b6-b7f3-b8bb801ae0c3" />
+<img width="1440" alt="CodeSense AI Code Viewer and Full File Tree" src="frontend/public/screenshots/code_viewer.png" />
 
 ---
 
 ### 3. Neural Code Chat with Branch-Aware RAG
 *Converse with your repository with sub-3-second latency, precise file citations, and code snippet generation.*
 
-<img width="1440" alt="CodeSense AI Neural Chat" src="https://github.com/user-attachments/assets/f50438ea-2e60-4acf-be11-0e7921df9953" />
+<img width="1440" alt="CodeSense AI Neural Chat" src="frontend/public/screenshots/neural_chat.png" />
 
 ---
 
 ### 4. Editorial Hero & Machine Lens Exploration
-*Luxury dark ambient design with smooth Lenis momentum scrolling and live repository statistics.*
+*Luxury dark ambient design with smooth Lenis momentum scrolling, status indicators, and live repository statistics.*
 
-<img width="1440" alt="CodeSense AI Editorial Hero" src="https://github.com/user-attachments/assets/003a5f25-4783-42bd-8d3d-2de7d42b14ca" />
+<img width="1440" alt="CodeSense AI Editorial Hero" src="frontend/public/screenshots/hero_home.png" />
 
 </div>
-
-> *Tip: You can capture and upload your latest browser screenshots to this section anytime to showcase the newest visual features.*
 
 ---
 

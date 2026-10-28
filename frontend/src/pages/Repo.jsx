@@ -196,7 +196,8 @@ export default function Repo() {
   const [branchLoading, setBranchLoading] = useState(false);
 
   // View state: "code" | "graph"
-  const [viewMode, setViewMode] = useState("code");
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const [viewMode, setViewMode] = useState(searchParams?.get("view") === "graph" ? "graph" : "code");
   const [fileSearch, setFileSearch] = useState("");
 
   // Fetch branches and metadata
@@ -230,6 +231,10 @@ export default function Repo() {
         const repoUrl = activeData?.repo_url?.split("#")[0] || `https://github.com/${data.analytics?.owner}/${data.analytics?.repo_name}`;
         fetchBranches(repoUrl);
       }
+
+      // Auto-select initial file for inspection
+      const targetFile = searchParams?.get("file") || "index.js";
+      handleFileClick(targetFile);
     } catch (err) {
       setError(err.message || "Error loading repo.");
     } finally {
