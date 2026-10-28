@@ -98,6 +98,7 @@ export default function Ai() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [repoUrl, setRepoUrl] = useState("");
+  const [branch, setBranch] = useState("main");
   const [apiKeyExists, setApiKeyExists] = useState(undefined);
   const [repoData, setRepoData] = useState(null);
   const [chat, setChat] = useState([
@@ -110,6 +111,15 @@ export default function Ai() {
   const [submitted, setSubmitted] = useState(false);
 
   const chatRef = useRef();
+
+  // Pick up pre-filled queries from ArchitectureGraph
+  useEffect(() => {
+    const prefill = sessionStorage.getItem("codesense_prefill_query");
+    if (prefill) {
+      setMsg(prefill);
+      sessionStorage.removeItem("codesense_prefill_query");
+    }
+  }, []);
 
   // Ingest progress UI state
   const [showIngestOverlay, setShowIngestOverlay] = useState(false);
@@ -218,6 +228,7 @@ export default function Ai() {
       setRepoData({
         name: analytics.repo_name,
         owner: analytics.owner,
+        branch: data.branch || analytics.branch || "main",
         avatar_url: analytics.contributors?.[0]?.avatar_url || "/logo.png",
         stars: analytics.stars,
         forks: analytics.forks,
@@ -284,6 +295,7 @@ export default function Ai() {
         body: JSON.stringify({
           user_id: user.id,
           repo_url: repoUrl,
+          branch: branch || "main",
           provider: provider,
         }),
       });
@@ -448,6 +460,18 @@ export default function Ai() {
                     required
                     disabled={loadingRepo}
                     className="w-full rounded-xl border border-hairline bg-[#131518] px-4 py-3 text-xs md:text-sm text-[#F4F5F7] placeholder-[#6E747D] outline-none transition-all focus:border-[#6E747D] focus:ring-1 focus:ring-[#6E747D]"
+                  />
+                </div>
+
+                <div className="relative w-full sm:w-28">
+                  <input
+                    type="text"
+                    placeholder="Branch (main)"
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    disabled={loadingRepo}
+                    className="w-full rounded-xl border border-hairline bg-[#131518] px-3 py-3 text-xs md:text-sm font-mono text-[#F4F5F7] placeholder-[#6E747D] outline-none transition-all focus:border-[#6E747D]"
+                    title="Branch to index (default: main)"
                   />
                 </div>
 

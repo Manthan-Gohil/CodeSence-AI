@@ -31,7 +31,7 @@ FAISS_INDEX_DIR = os.getenv("FAISS_INDEX_DIR", "./faiss_index")
 os.makedirs(FAISS_INDEX_DIR, exist_ok=True)
 
 class FastOllamaEmbeddings(Embeddings):
-    """High-performance batch embedder for Ollama using /api/embed (50x faster on CPU)"""
+    """High-performance batch embedder for Ollama using /api/embed with safe CPU batching"""
     def __init__(self, model: str = EMBED_MODEL, base_url: str = OLLAMA_BASE_URL):
         self.model = model
         self.base_url = base_url.rstrip("/")
@@ -40,14 +40,15 @@ class FastOllamaEmbeddings(Embeddings):
         if not texts:
             return []
         all_embeddings = []
-        batch_size = 32
+        # Safe CPU batch size: 6 chunks per batch prevents Ollama HTTP timeout / VM lockup
+        batch_size = 6
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
             try:
                 resp = requests.post(
                     f"{self.base_url}/api/embed",
                     json={"model": self.model, "input": batch},
-                    timeout=120
+                    timeout=60
                 )
                 resp.raise_for_status()
                 data = resp.json()
@@ -60,7 +61,7 @@ class FastOllamaEmbeddings(Embeddings):
                         r = requests.post(
                             f"{self.base_url}/api/embeddings",
                             json={"model": self.model, "prompt": t},
-                            timeout=60
+                            timeout=30
                         )
                         r.raise_for_status()
                         all_embeddings.append(r.json().get("embedding", []))
@@ -164,24 +165,52 @@ class DeleteNamespaceRequest(BaseModel):
     namespace: str
 
 def get_embedder(provider: Optional[str] = None, api_key: Optional[str] = None, namespace: Optional[str] = None):
-    # Auto-detect existing FAISS index vector dimension to ensure perfect compatibility
+    chosen_provider = (provider or os.getenv("DEFAULT_LLM_PROVIDER", "gemini")).lower()
+    gemini_key = api_key or os.getenv("GEMINI_API_KEY")
+
+    # If namespace exists, check for provider_meta.json or vector dimension for backwards compatibility
     if namespace:
+        meta_file = os.path.join(get_faiss_index_path(namespace), "provider_meta.json")
+        if os.path.exists(meta_file):
+            try:
+                with open(meta_file, "r") as f:
+                    meta = json.load(f)
+                meta_provider = meta.get("provider", "").lower()
+                if meta_provider == "gemini" and gemini_key:
+                    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                    model_name = meta.get("model", "models/gemini-embedding-001")
+                    return GoogleGenerativeAIEmbeddings(model=model_name, google_api_key=gemini_key)
+                elif meta_provider == "ollama":
+                    return FastOllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
+            except Exception as e:
+                print(f"Failed to read provider_meta.json: {e}")
+
+        # Dimension inspection fallback
         idx_file = os.path.join(get_faiss_index_path(namespace), "index.faiss")
         if os.path.exists(idx_file):
             try:
                 import faiss
                 idx = faiss.read_index(idx_file)
-                if idx.d == 768:
+                if idx.d == 3072 and gemini_key:
+                    from langchain_google_genai import GoogleGenerativeAIEmbeddings
+                    return GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=gemini_key)
+                elif idx.d == 768:
                     return FastOllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
-                elif idx.d == 3072:
-                    key = api_key or os.getenv("GEMINI_API_KEY")
-                    if key:
-                        from langchain_google_genai import GoogleGenerativeAIEmbeddings
-                        return GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", google_api_key=key)
             except Exception as e:
                 print(f"Index dimension check warning: {e}")
-                
-    # Default local provider: FastOllamaEmbeddings nomic-embed-text (unlimited quota, ultra-fast batched execution)
+
+    # For new index creation: Prioritize Cloud Gemini Embeddings (sub-2s latency, zero VM CPU load)
+    if chosen_provider == "gemini" and gemini_key:
+        try:
+            from langchain_google_genai import GoogleGenerativeAIEmbeddings
+            return GoogleGenerativeAIEmbeddings(
+                model="models/gemini-embedding-001",
+                google_api_key=gemini_key
+            )
+        except Exception as e:
+            print(f"Warning: Failed to init GoogleGenerativeAIEmbeddings gemini-embedding-001: {e}")
+
+    # Default local provider: FastOllamaEmbeddings nomic-embed-text (unlimited quota, tuned safe CPU execution)
     return FastOllamaEmbeddings(model=EMBED_MODEL, base_url=OLLAMA_BASE_URL)
 
 def get_llm(provider: Optional[str] = None, api_key: Optional[str] = None):
@@ -254,15 +283,35 @@ async def upsert_chunks(req: ChunkRequest):
         docs = [Document(page_content=text, metadata=meta) for text, meta in zip(texts, metadatas)]
         
         index_path = get_faiss_index_path(req.namespace)
+        os.makedirs(index_path, exist_ok=True)
         
-        if os.path.exists(index_path):
+        # Sub-batch to prevent huge memory spikes and allow incremental progress
+        sub_batch_size = 20
+        vectorstore = None
+        if os.path.exists(os.path.join(index_path, "index.faiss")):
             vectorstore = FAISS.load_local(index_path, embedder, allow_dangerous_deserialization=True)
-            vectorstore.add_documents(docs)
+            for i in range(0, len(docs), sub_batch_size):
+                sub_docs = docs[i:i + sub_batch_size]
+                vectorstore.add_documents(sub_docs)
         else:
-            vectorstore = FAISS.from_documents(docs, embedder)
+            first_batch = docs[:sub_batch_size]
+            vectorstore = FAISS.from_documents(first_batch, embedder)
+            for i in range(sub_batch_size, len(docs), sub_batch_size):
+                sub_docs = docs[i:i + sub_batch_size]
+                vectorstore.add_documents(sub_docs)
         
-        os.makedirs(os.path.dirname(index_path), exist_ok=True)
         vectorstore.save_local(index_path)
+        
+        # Save provider metadata
+        chosen_provider = "gemini" if "GoogleGenerativeAIEmbeddings" in type(embedder).__name__ else "ollama"
+        meta_data = {
+            "provider": chosen_provider,
+            "model": "models/gemini-embedding-001" if chosen_provider == "gemini" else EMBED_MODEL,
+            "dimension": 3072 if chosen_provider == "gemini" else 768,
+            "chunks_count": len(req.chunks)
+        }
+        with open(os.path.join(index_path, "provider_meta.json"), "w") as f:
+            json.dump(meta_data, f)
         
         return ChunkResponse(chunks_added=len(req.chunks), namespace=req.namespace)
     except Exception as e:

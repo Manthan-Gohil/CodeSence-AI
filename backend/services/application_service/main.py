@@ -4,6 +4,7 @@ Application Service - Handles user requests, auth (OAuth2), orchestrates calls t
 Serves the React frontend's API needs (under /api) as well as direct microservice endpoints.
 """
 import os
+import re
 import json
 import base64
 import uuid
@@ -171,7 +172,11 @@ class APIKeyRequest(BaseModel):
 class IngestRepoRequest(BaseModel):
     repo_url: str
     user_id: str
+    branch: Optional[str] = "main"
     provider: str = "ollama"
+
+class BranchListRequest(BaseModel):
+    repo_url: str
 
 class GenericUserRequest(BaseModel):
     user_id: str
@@ -311,6 +316,24 @@ async def delete_api_key(body: Dict = Body(...), db: Session = Depends(get_db)):
 # ==========================================
 # Chat & RAG Endpoints
 # ==========================================
+def resolve_namespace_for_active_repo(user_id: str, active_repo_url: str) -> str:
+    clean_url = active_repo_url
+    branch = "main"
+    if "#" in clean_url:
+        clean_url, branch = clean_url.split("#", 1)
+    repo_name = clean_url.rstrip("/").split("/")[-1]
+    clean_branch = re.sub(r'[^a-zA-Z0-9_-]', '_', branch)
+    
+    branch_namespace = f"{user_id}_{repo_name}_{clean_branch}"
+    base_namespace = f"{user_id}_{repo_name}"
+    
+    # Check if branch index directory exists in faiss_index
+    if os.path.exists(os.path.join("./faiss_index", branch_namespace)):
+        return branch_namespace
+    if os.path.exists(os.path.join("./faiss_index", base_namespace)):
+        return base_namespace
+    return branch_namespace
+
 @app.post("/chat", response_model=ChatResponse)
 @app.post("/api/ai/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, db: Session = Depends(get_db)):
@@ -318,8 +341,7 @@ async def chat(req: ChatRequest, db: Session = Depends(get_db)):
     if not active:
         raise HTTPException(400, "No active repo set. Ingest a repo first.")
     
-    repo_name = active.repo_url.rstrip("/").split("/")[-1]
-    namespace = f"{req.user_id}_{repo_name}"
+    namespace = resolve_namespace_for_active_repo(req.user_id, active.repo_url)
     
     # Default to Gemini (fast 1-2s response, no CPU hang)
     default_provider = os.getenv("DEFAULT_LLM_PROVIDER", "gemini")
@@ -389,8 +411,7 @@ async def get_chat_history(body: GenericUserRequest, db: Session = Depends(get_d
     active = db.query(ActiveRepo).filter(ActiveRepo.user_id == body.user_id).first()
     if not active:
         return {"messages": []}
-    repo_name = active.repo_url.rstrip("/").split("/")[-1]
-    namespace = f"{body.user_id}_{repo_name}"
+    namespace = resolve_namespace_for_active_repo(body.user_id, active.repo_url)
     messages = db.query(ChatMessage).filter(ChatMessage.namespace == namespace).order_by(ChatMessage.created_at.asc()).all()
     return {
         "messages": [
@@ -408,6 +429,7 @@ async def get_chat_history(body: GenericUserRequest, db: Session = Depends(get_d
 async def delete_chat_msg(msg_id: str = Query(...), user_id: str = Query(...), db: Session = Depends(get_db)):
     db.query(ChatMessage).filter(ChatMessage.id == msg_id, ChatMessage.user_id == user_id).delete()
     db.commit()
+    return {"deleted": True}
     return {"deleted": True}
 
 @app.post("/compare_rag")
@@ -434,6 +456,20 @@ async def compare_rag(req: CompareRAGRequest, db: Session = Depends(get_db)):
 # ==========================================
 # Repository & Ingestion Endpoints
 # ==========================================
+@app.post("/repo/branches")
+@app.post("/api/repo/branches")
+async def get_repo_branches(req: BranchListRequest):
+    try:
+        resp = requests.post(
+            f"{DATA_SERVICE_URL}/branches",
+            json={"repo_url": req.repo_url},
+            timeout=20
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        return {"branches": ["main", "master"], "default_branch": "main", "error": str(e)}
+
 @app.post("/repo/ingest")
 @app.post("/api/repo/ingest_repo")
 async def ingest_repo(req: IngestRepoRequest, db: Session = Depends(get_db)):
@@ -456,6 +492,7 @@ async def ingest_repo(req: IngestRepoRequest, db: Session = Depends(get_db)):
     payload = req.dict()
     payload["provider"] = provider
     payload["api_key"] = api_key
+    payload["branch"] = req.branch or "main"
 
     try:
         resp = requests.post(
@@ -465,13 +502,16 @@ async def ingest_repo(req: IngestRepoRequest, db: Session = Depends(get_db)):
         )
         resp.raise_for_status()
         data = resp.json()
+        clean_branch = re.sub(r'[^a-zA-Z0-9_-]', '_', payload["branch"])
+        repo_name = req.repo_url.rstrip('/').split('/')[-1]
         return {
             "status": "success",
             "ok": True,
             "repo_url": req.repo_url,
-            "provider": req.provider,
+            "provider": provider,
+            "branch": payload["branch"],
             "chunks_added": data.get("chunks_added", 0),
-            "namespace": data.get("namespace", f"{req.user_id}_{req.repo_url.rstrip('/').split('/')[-1]}")
+            "namespace": data.get("namespace", f"{req.user_id}_{repo_name}_{clean_branch}")
         }
     except requests.exceptions.RequestException as e:
         err_msg = str(e)
@@ -488,10 +528,14 @@ async def ingest_repo(req: IngestRepoRequest, db: Session = Depends(get_db)):
 async def get_repo_metadata(body: Dict = Body(...), db: Session = Depends(get_db)):
     repo_url = body.get("repo_url")
     user_id = body.get("user_id")
+    branch = body.get("branch")
+    
     if not repo_url and user_id:
         active = db.query(ActiveRepo).filter(ActiveRepo.user_id == user_id).first()
         if active:
             repo_url = active.repo_url
+            if "#" in repo_url and not branch:
+                repo_url, branch = repo_url.split("#", 1)
     
     if not repo_url:
         raise HTTPException(400, "No active repo found for user.")
@@ -499,7 +543,7 @@ async def get_repo_metadata(body: Dict = Body(...), db: Session = Depends(get_db
     try:
         resp = requests.post(
             f"{DATA_SERVICE_URL}/metadata",
-            json={"repo_url": repo_url},
+            json={"repo_url": repo_url, "branch": branch},
             timeout=30
         )
         resp.raise_for_status()
@@ -556,12 +600,14 @@ async def delete_active_repo(body: Dict = Body(...), db: Session = Depends(get_d
         raise HTTPException(502, f"Data service error: {str(e)}")
 
 @app.post("/repo/file/content")
+@app.post("/api/repo/file_content")
 @app.post("/api/repo/get_file_content")
 async def get_file_content(body: Dict = Body(...), db: Session = Depends(get_db)):
     owner = body.get("owner")
     repo = body.get("repo")
     file_path = body.get("file_path")
     user_id = body.get("user_id")
+    branch = body.get("branch")
     
     if not file_path:
         raise HTTPException(400, "file_path is required")
@@ -569,7 +615,12 @@ async def get_file_content(body: Dict = Body(...), db: Session = Depends(get_db)
     if not (owner and repo) and user_id:
         active = db.query(ActiveRepo).filter(ActiveRepo.user_id == user_id).first()
         if active:
-            parts = active.repo_url.rstrip("/").split("/")
+            clean_url = active.repo_url
+            if "#" in clean_url:
+                clean_url, active_branch = clean_url.split("#", 1)
+                if not branch:
+                    branch = active_branch
+            parts = clean_url.rstrip("/").split("/")
             owner, repo = parts[-2], parts[-1]
             
     if not (owner and repo):
@@ -578,7 +629,7 @@ async def get_file_content(body: Dict = Body(...), db: Session = Depends(get_db)
     try:
         resp = requests.post(
             f"{DATA_SERVICE_URL}/file/content",
-            json={"owner": owner, "repo": repo, "file_path": file_path},
+            json={"owner": owner, "repo": repo, "file_path": file_path, "branch": branch},
             timeout=30
         )
         resp.raise_for_status()

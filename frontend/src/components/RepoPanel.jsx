@@ -1,5 +1,5 @@
 import React from "react";
-import { Github, Star, GitFork, Globe2, BadgeCheck, BookOpen, XCircle, ArrowUpRight } from "lucide-react";
+import { Github, Star, GitFork, Globe2, BadgeCheck, BookOpen, XCircle, ArrowUpRight, GitBranch } from "lucide-react";
 
 export default function RepoPanel({ repoData, handleNewRepo }) {
   if (!repoData) return null;
@@ -13,9 +13,9 @@ export default function RepoPanel({ repoData, handleNewRepo }) {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-hairline pb-4 text-xs font-mono text-[#6E747D]">
           <span className="label-mono text-[#AEB4BD]">Active Repository</span>
-          <span className="flex items-center gap-1.5 text-[#2EA043]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#2EA043] animate-pulse" />
-            Synchronized
+          <span className="flex items-center gap-1.5 text-[#38BDF8] border border-[#38BDF8]/30 px-2 py-0.5 rounded-md bg-[#38BDF8]/10 text-[11px] font-semibold">
+            <GitBranch size={11} />
+            {repoData.branch || "main"}
           </span>
         </div>
 
